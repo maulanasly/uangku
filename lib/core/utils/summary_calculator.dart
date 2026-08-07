@@ -22,7 +22,7 @@ class SummaryCalculator {
     final Map<String, double> breakdown = {};
 
     for (final t in transactions) {
-      if (t.date.year != month.year || t.date.month != month.month) {
+      if (!isSameMonth(t.date, month)) {
         continue;
       }
       if (t.type == TransactionType.income) {
@@ -39,5 +39,20 @@ class SummaryCalculator {
       balance: income - expense,
       categoryBreakdown: breakdown,
     );
+  }
+
+  static bool isSameMonth(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month;
+  }
+
+  static DateTime shiftMonth(DateTime month, int delta) {
+    return DateTime(month.year, month.month + delta);
+  }
+
+  static List<TransactionEntity> filterByMonth(
+    List<TransactionEntity> transactions,
+    DateTime month,
+  ) {
+    return transactions.where((t) => isSameMonth(t.date, month)).toList();
   }
 }

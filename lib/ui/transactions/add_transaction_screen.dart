@@ -136,12 +136,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 onSelectionChanged: (Set<TransactionType> newSelection) {
                   setState(() {
                     _selectedType = newSelection.first;
-                    // Auto-switch category based on type for convenience
-                    if (_selectedType == TransactionType.income) {
-                      _selectedCategory = 'cat_salary';
-                    } else if (_selectedCategory == 'cat_salary') {
-                      _selectedCategory = 'cat_food';
-                    }
                   });
                 },
               ),

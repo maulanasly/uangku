@@ -18,6 +18,7 @@ class DashboardScreen extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final selectedMonth = ref.watch(selectedMonthProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -35,12 +36,12 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: transactionsAsync.when(
         data: (transactions) {
-          final now = DateTime.now();
-          final summary = SummaryCalculator.forMonth(transactions, now);
-
           if (transactions.isEmpty) {
             return const Center(child: Text('No transactions yet. Scan a receipt!'));
           }
+
+          final monthTransactions = SummaryCalculator.filterByMonth(transactions, selectedMonth);
+          final summary = SummaryCalculator.forMonth(transactions, selectedMonth);
 
           final categories = categoriesAsync.valueOrNull ?? [];
           String categoryName(String id) {
@@ -53,6 +54,7 @@ class DashboardScreen extends ConsumerWidget {
           }
 
           final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
+          final isCurrentMonth = SummaryCalculator.isSameMonth(selectedMonth, DateTime.now());
 
           return CustomScrollView(
             slivers: [
@@ -64,7 +66,39 @@ class DashboardScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          const Text('This Month', style: TextStyle(fontSize: 16)),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.chevron_left),
+                                onPressed: () => ref.read(selectedMonthProvider.notifier).state =
+                                    SummaryCalculator.shiftMonth(selectedMonth, -1),
+                              ),
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      DateFormat.yMMMM().format(selectedMonth),
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    if (!isCurrentMonth)
+                                      TextButton(
+                                        onPressed: () {
+                                          final now = DateTime.now();
+                                          ref.read(selectedMonthProvider.notifier).state =
+                                              DateTime(now.year, now.month);
+                                        },
+                                        child: const Text('Back to today'),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.chevron_right),
+                                onPressed: () => ref.read(selectedMonthProvider.notifier).state =
+                                    SummaryCalculator.shiftMonth(selectedMonth, 1),
+                              ),
+                            ],
+                          ),
                           Text(
                             currencyFormat.format(summary.balance),
                             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -104,9 +138,11 @@ class DashboardScreen extends ConsumerWidget {
                       const Text('Spending by Category', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       if (summary.categoryBreakdown.isEmpty)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No expenses this month')),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text('No expenses in ${DateFormat.yMMMM().format(selectedMonth)}'),
+                          ),
                         )
                       else
                         SizedBox(
@@ -127,60 +163,70 @@ class DashboardScreen extends ConsumerWidget {
                   child: Text('Recent Transactions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
-              SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final t = transactions[index];
-                    final isExpense = t.type == TransactionType.expense;
-                    return Dismissible(
-                      key: Key(t.id),
-                      direction: DismissDirection.endToStart,
-                      background: Container(
-                        color: Colors.red,
-                        alignment: Alignment.centerRight,
-                        padding: const EdgeInsets.only(right: 20),
-                        child: const Icon(Icons.delete, color: Colors.white),
-                      ),
-                      onDismissed: (direction) {
-                        final repo = ref.read(transactionRepositoryProvider);
-                        repo.deleteTransaction(t.id);
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text('Transaction deleted'),
-                            action: SnackBarAction(
-                              label: 'Undo',
-                              onPressed: () {
-                                repo.addTransaction(t);
-                              },
+              if (monthTransactions.isEmpty)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Center(
+                      child: Text('No transactions in ${DateFormat.yMMMM().format(selectedMonth)}'),
+                    ),
+                  ),
+                )
+              else
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final t = monthTransactions[index];
+                      final isExpense = t.type == TransactionType.expense;
+                      return Dismissible(
+                        key: Key(t.id),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          color: Colors.red,
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20),
+                          child: const Icon(Icons.delete, color: Colors.white),
+                        ),
+                        onDismissed: (direction) {
+                          final repo = ref.read(transactionRepositoryProvider);
+                          repo.deleteTransaction(t.id);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: const Text('Transaction deleted'),
+                              action: SnackBarAction(
+                                label: 'Undo',
+                                onPressed: () {
+                                  repo.addTransaction(t);
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                        child: ListTile(
+                          onTap: () => context.push('/add_transaction', extra: t),
+                          leading: CircleAvatar(
+                            backgroundColor: isExpense ? Colors.red.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
+                            child: Icon(
+                              isExpense ? Icons.arrow_downward : Icons.arrow_upward,
+                              color: isExpense ? Colors.red : Colors.green,
                             ),
                           ),
-                        );
-                      },
-                      child: ListTile(
-                        onTap: () => context.push('/add_transaction', extra: t),
-                        leading: CircleAvatar(
-                          backgroundColor: isExpense ? Colors.red.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
-                          child: Icon(
-                            isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                            color: isExpense ? Colors.red : Colors.green,
+                          title: Text(t.merchant),
+                          subtitle: Text(DateFormat.yMMMd().format(t.date)),
+                          trailing: Text(
+                            '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
+                            style: TextStyle(
+                              color: isExpense ? Colors.red : Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        title: Text(t.merchant),
-                        subtitle: Text(DateFormat.yMMMd().format(t.date)),
-                        trailing: Text(
-                          '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
-                          style: TextStyle(
-                            color: isExpense ? Colors.red : Colors.green,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                  childCount: transactions.length,
+                      );
+                    },
+                    childCount: monthTransactions.length,
+                  ),
                 ),
-              ),
             ],
           );
         },

@@ -18,6 +18,11 @@ final currencySymbolProvider = FutureProvider<String>((ref) {
   return PreferencesService().getCurrencySymbol();
 });
 
+final selectedMonthProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return DateTime(now.year, now.month);
+});
+
 final transactionQueryProvider =
     StateProvider<TransactionQuery>((ref) => const TransactionQuery());
 
