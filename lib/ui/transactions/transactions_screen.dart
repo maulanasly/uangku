@@ -39,6 +39,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final transactionsAsync = ref.watch(filteredTransactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final categories = categoriesAsync.valueOrNull ?? [];
+    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Transactions')),
@@ -169,7 +170,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 if (transactions.isEmpty) {
                   return const Center(child: Text('No transactions found'));
                 }
-                final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+                final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
                 return ListView.builder(
                   itemCount: transactions.length,
                   itemBuilder: (context, index) {

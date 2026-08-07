@@ -17,6 +17,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
 
     return Scaffold(
       appBar: AppBar(
@@ -51,7 +52,7 @@ class DashboardScreen extends ConsumerWidget {
             ).name;
           }
 
-          final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
+          final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
 
           return CustomScrollView(
             slivers: [
