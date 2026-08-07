@@ -24,7 +24,7 @@ class OcrSpaceService {
     request.fields['language'] = 'eng';
     request.fields['OCREngine'] = '2';
     request.files.add(
-      http.MultipartFile.fromBytes('file', bytes, filename: 'receipt.$mimeType'),
+      http.MultipartFile.fromBytes('file', bytes, filename: 'receipt.jpg'),
     );
 
     final response = await request.send();
