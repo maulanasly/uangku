@@ -69,7 +69,10 @@ class CategoriesScreen extends ConsumerWidget {
   }
 
   Future<void> _deleteCategory(
-      BuildContext context, WidgetRef ref, CategoryEntity category) async {
+    BuildContext context,
+    WidgetRef ref,
+    CategoryEntity category,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(

@@ -56,7 +56,13 @@ class DashboardScreen extends ConsumerWidget {
           final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
           final isCurrentMonth = SummaryCalculator.isSameMonth(selectedMonth, DateTime.now());
 
-          return CustomScrollView(
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(transactionsProvider);
+              ref.invalidate(categoriesProvider);
+              ref.invalidate(currencySymbolProvider);
+            },
+            child: CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
                 child: Padding(
@@ -228,6 +234,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
             ],
+          ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

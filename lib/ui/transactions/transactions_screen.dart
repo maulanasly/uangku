@@ -165,10 +165,22 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
             ),
           ),
           Expanded(
-            child: transactionsAsync.when(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(transactionsProvider);
+                ref.invalidate(categoriesProvider);
+                ref.invalidate(filteredTransactionsProvider);
+                ref.invalidate(currencySymbolProvider);
+              },
+              child: transactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) {
-                  return const Center(child: Text('No transactions found'));
+                  return ListView(
+                    children: const [
+                      SizedBox(height: 200),
+                      Center(child: Text('No transactions found')),
+                    ],
+                  );
                 }
                 final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
                 return ListView.builder(
@@ -205,6 +217,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, st) => Center(child: Text('Error: $e')),
             ),
+          ),
           ),
         ],
       ),

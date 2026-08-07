@@ -20,7 +20,18 @@ class AnalyticsScreen extends ConsumerWidget {
       body: transactionsAsync.when(
         data: (transactions) {
           if (transactions.isEmpty) {
-            return const Center(child: Text('No transactions yet'));
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(transactionsProvider);
+                ref.invalidate(categoriesProvider);
+              },
+              child: ListView(
+                children: const [
+                  SizedBox(height: 200),
+                  Center(child: Text('No transactions yet')),
+                ],
+              ),
+            );
           }
 
           final data = AnalyticsCalculator.compute(transactions);
@@ -36,7 +47,12 @@ class AnalyticsScreen extends ConsumerWidget {
 
           final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
 
-          return ListView(
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(transactionsProvider);
+              ref.invalidate(categoriesProvider);
+            },
+            child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
               Card(
@@ -221,6 +237,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   ),
                 ),
             ],
+          ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
