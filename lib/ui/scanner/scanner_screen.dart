@@ -49,11 +49,11 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<({ReceiptData data, bool usedLocalOcr})> _parseImage(XFile image) async {
+    final bytes = await image.readAsBytes();
     try {
-      final text = await ocrService.extractTextFromFile(image.path);
+      final text = await ocrService.extractText(image.path, bytes);
       return (data: ReceiptParser.parseLines(text.split('\n')), usedLocalOcr: true);
     } catch (_) {
-      final bytes = await image.readAsBytes();
       final data = await _geminiService.parseReceiptFromBytes(
         bytes,
         mimeType: image.mimeType ?? 'image/jpeg',
