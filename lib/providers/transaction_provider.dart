@@ -18,6 +18,10 @@ final currencySymbolProvider = FutureProvider<String>((ref) {
   return PreferencesService().getCurrencySymbol();
 });
 
+final ocrModeProvider = FutureProvider<String>((ref) {
+  return PreferencesService().getOcrMode();
+});
+
 final selectedMonthProvider = StateProvider<DateTime>((ref) {
   final now = DateTime.now();
   return DateTime(now.year, now.month);

@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/services/gemini_service.dart';
 import '../../core/services/ocr_service.dart';
+import '../../core/services/preferences_service.dart';
 import '../../core/utils/receipt_parser.dart';
 import '../../providers/database_provider.dart';
+import '../../providers/transaction_provider.dart';
 import 'receipt_draft.dart';
 import 'review_transaction_dialog.dart';
 
@@ -37,7 +39,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
     } finally {
       if (mounted) {
@@ -50,6 +54,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   Future<({ReceiptData data, bool usedLocalOcr})> _parseImage(XFile image) async {
     final bytes = await image.readAsBytes();
+    final mode = await ref.read(ocrModeProvider.future);
+
+    // Gemini mode: skip local OCR entirely.
+    if (mode == 'gemini') {
+      final data = await _geminiService.parseReceiptFromBytes(
+        bytes,
+        mimeType: image.mimeType ?? 'image/jpeg',
+      );
+      return (data: data, usedLocalOcr: false);
+    }
+
+    // Auto mode: try local OCR first, fallback to Gemini.
     try {
       final text = await ocrService.extractText(image.path, bytes);
       return (data: ReceiptParser.parseLines(text.split('\n')), usedLocalOcr: true);
@@ -62,7 +78,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  Future<void> _showReviewDialog(({ReceiptData data, bool usedLocalOcr}) parsed) async {
+  Future<void> _showReviewDialog(
+    ({ReceiptData data, bool usedLocalOcr}) parsed,
+  ) async {
     final result = await showReviewTransactionDialog(
       context,
       draft: ReceiptDraft.fromReceiptData(parsed.data),
@@ -81,8 +99,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     context.pop();
   }
 
+  Future<void> _toggleMode(String mode) async {
+    await PreferencesService().setOcrMode(mode);
+    ref.invalidate(ocrModeProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final modeAsync = ref.watch(ocrModeProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Scan Receipt')),
       body: Center(
@@ -98,6 +123,30 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 32),
+                    child: modeAsync.when(
+                      data: (mode) => SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(
+                            value: 'auto',
+                            label: Text('Auto'),
+                            icon: Icon(Icons.phone_android),
+                          ),
+                          ButtonSegment(
+                            value: 'gemini',
+                            label: Text('Gemini'),
+                            icon: Icon(Icons.cloud),
+                          ),
+                        ],
+                        selected: {mode},
+                        onSelectionChanged: (selection) =>
+                            _toggleMode(selection.first),
+                      ),
+                      loading: () => const SizedBox.shrink(),
+                      error: (_, __) => const SizedBox.shrink(),
+                    ),
+                  ),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('Capture Image'),
