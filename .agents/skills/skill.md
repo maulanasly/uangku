@@ -31,12 +31,18 @@ For every feature task, follow this order:
       - Run `graphify query "<question>"` for architecture and relationship context.
       - Run `graphify explain "<node>"` when deeper dependency explanation is needed.
 3. Implement the smallest safe code change.
-4. At final stage, run tests before declaring done.
+4. Update the README to reflect the change (features, commands, or architecture) when applicable.
+5. At final stage, run tests before declaring done.
 
 Branching rule:
 
 - Always create one branch for every feature.
 - Do not implement feature changes directly on the current base branch.
+
+README rule:
+
+- Always update the README to document any user-visible change.
+- A feature is not complete if the README is not updated when it should be.
 
 Final-stage verification rule:
 
@@ -301,6 +307,7 @@ A feature is complete when:
 - Builds successfully
 - Tests pass
 - Final-stage checks have been run (`flutter analyze` and `flutter test`)
+- README updated to reflect the change when applicable
 - No dead code
 - No unused imports
 - No debug prints
