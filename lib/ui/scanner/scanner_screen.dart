@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/services/gemini_service.dart';
+import '../../core/services/ocr_cloud_service.dart';
 import '../../core/services/ocr_service.dart';
 import '../../core/services/preferences_service.dart';
 import '../../core/utils/receipt_parser.dart';
@@ -22,6 +23,7 @@ class ScannerScreen extends ConsumerStatefulWidget {
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final ImagePicker _picker = ImagePicker();
   final GeminiService _geminiService = GeminiService();
+  final OcrSpaceService _ocrSpaceService = OcrSpaceService();
   bool _isProcessing = false;
 
   Future<void> _processImage(ImageSource source) async {
@@ -52,39 +54,46 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  Future<({ReceiptData data, bool usedLocalOcr})> _parseImage(XFile image) async {
+  Future<({ReceiptData data, String? cloudProvider})> _parseImage(XFile image) async {
     final bytes = await image.readAsBytes();
     final mode = await ref.read(ocrModeProvider.future);
 
-    // Gemini mode: skip local OCR entirely.
+    // Direct cloud modes.
     if (mode == 'gemini') {
       final data = await _geminiService.parseReceiptFromBytes(
         bytes,
         mimeType: image.mimeType ?? 'image/jpeg',
       );
-      return (data: data, usedLocalOcr: false);
+      return (data: data, cloudProvider: 'gemini');
     }
-
-    // Auto mode: try local OCR first, fallback to Gemini.
-    try {
-      final text = await ocrService.extractText(image.path, bytes);
-      return (data: ReceiptParser.parseLines(text.split('\n')), usedLocalOcr: true);
-    } catch (_) {
-      final data = await _geminiService.parseReceiptFromBytes(
+    if (mode == 'ocrspace') {
+      final data = await _ocrSpaceService.parseReceiptFromBytes(
         bytes,
         mimeType: image.mimeType ?? 'image/jpeg',
       );
-      return (data: data, usedLocalOcr: false);
+      return (data: data, cloudProvider: 'ocrspace');
+    }
+
+    // Auto mode: try local OCR first, fallback to OCR.space.
+    try {
+      final text = await ocrService.extractText(image.path, bytes);
+      return (data: ReceiptParser.parseLines(text.split('\n')), cloudProvider: null);
+    } catch (_) {
+      final data = await _ocrSpaceService.parseReceiptFromBytes(
+        bytes,
+        mimeType: image.mimeType ?? 'image/jpeg',
+      );
+      return (data: data, cloudProvider: 'ocrspace');
     }
   }
 
   Future<void> _showReviewDialog(
-    ({ReceiptData data, bool usedLocalOcr}) parsed,
+    ({ReceiptData data, String? cloudProvider}) parsed,
   ) async {
     final result = await showReviewTransactionDialog(
       context,
       draft: ReceiptDraft.fromReceiptData(parsed.data),
-      usedLocalOcr: parsed.usedLocalOcr,
+      cloudProvider: parsed.cloudProvider,
     );
 
     if (result == null) {
@@ -128,16 +137,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     child: modeAsync.when(
                       data: (mode) => SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(
-                            value: 'auto',
-                            label: Text('Auto'),
-                            icon: Icon(Icons.phone_android),
-                          ),
-                          ButtonSegment(
-                            value: 'gemini',
-                            label: Text('Gemini'),
-                            icon: Icon(Icons.cloud),
-                          ),
+                          ButtonSegment(value: 'auto', label: Text('Auto'), icon: Icon(Icons.phone_android)),
+                          ButtonSegment(value: 'gemini', label: Text('Gemini'), icon: Icon(Icons.auto_awesome)),
+                          ButtonSegment(value: 'ocrspace', label: Text('Cloud'), icon: Icon(Icons.cloud)),
                         ],
                         selected: {mode},
                         onSelectionChanged: (selection) =>
@@ -147,16 +149,33 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                       error: (_, __) => const SizedBox.shrink(),
                     ),
                   ),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Capture Image'),
-                    onPressed: () => _processImage(ImageSource.camera),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.photo_library),
-                    label: const Text('Select from Gallery'),
-                    onPressed: () => _processImage(ImageSource.gallery),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 100,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.camera_alt, size: 28),
+                              label: const Text('Camera'),
+                              onPressed: () => _processImage(ImageSource.camera),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: SizedBox(
+                            height: 100,
+                            child: ElevatedButton.icon(
+                              icon: const Icon(Icons.photo_library, size: 28),
+                              label: const Text('Gallery'),
+                              onPressed: () => _processImage(ImageSource.gallery),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

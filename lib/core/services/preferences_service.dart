@@ -5,7 +5,7 @@ class PreferencesService {
   static const _ocrModeKey = 'ocr_mode';
 
   static const supportedSymbols = ['\$', 'Rp', '€', '£', '¥'];
-  static const ocrModes = ['auto', 'gemini'];
+  static const ocrModes = ['auto', 'gemini', 'ocrspace'];
 
   Future<String> getCurrencySymbol() async {
     final prefs = await SharedPreferences.getInstance();

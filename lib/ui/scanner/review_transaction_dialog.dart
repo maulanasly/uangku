@@ -12,7 +12,7 @@ Future<({TransactionsCompanion transaction, List<TransactionItemsCompanion> item
     showReviewTransactionDialog(
   BuildContext context, {
   required ReceiptDraft draft,
-  required bool usedLocalOcr,
+  String? cloudProvider,
 }) {
   return showDialog<
       ({TransactionsCompanion transaction, List<TransactionItemsCompanion> items})>(
@@ -20,18 +20,18 @@ Future<({TransactionsCompanion transaction, List<TransactionItemsCompanion> item
     barrierDismissible: false,
     builder: (context) => _ReviewTransactionDialog(
       initialDraft: draft,
-      usedLocalOcr: usedLocalOcr,
+      cloudProvider: cloudProvider,
     ),
   );
 }
 
 class _ReviewTransactionDialog extends ConsumerStatefulWidget {
   final ReceiptDraft initialDraft;
-  final bool usedLocalOcr;
+  final String? cloudProvider;
 
   const _ReviewTransactionDialog({
     required this.initialDraft,
-    required this.usedLocalOcr,
+    this.cloudProvider,
   });
 
   @override
@@ -114,6 +114,17 @@ class _ReviewTransactionDialogState
     });
   }
 
+  String _ocrLabel() {
+    switch (widget.cloudProvider) {
+      case 'gemini':
+        return 'Scanned with Gemini AI';
+      case 'ocrspace':
+        return 'Scanned with OCR.space';
+      default:
+        return 'Scanned on device';
+    }
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -152,9 +163,7 @@ class _ReviewTransactionDialogState
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.usedLocalOcr
-                    ? 'Scanned on device (ML Kit)'
-                    : 'Scanned with Gemini AI',
+                _ocrLabel(),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),

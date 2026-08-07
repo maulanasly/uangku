@@ -71,7 +71,7 @@ Receipt scanning runs fully on-device:
 - **Android** — Google ML Kit Text Recognition
 - **Web** — not available; falls back to the Gemini API (`gemini-1.5-flash`) for parsing
 
-If local OCR returns nothing, the Gemini fallback parses the image before showing an editable review dialog — nothing is saved until the user confirms.
+If local OCR returns nothing, the cloud fallback (OCR.space, free API) parses the image. You can also switch to Gemini (requires `GEMINI_API_KEY`) or force a specific engine via the toggle at the top of the scanner screen. Nothing is saved until the user confirms.
 
 ## Definition of Done
 
