@@ -11,6 +11,8 @@ A personal money tracker built with Flutter. Track income and expenses, scan rec
 - **Analytics** — monthly trends, category spending, income vs expense
 - **Settings** — manage categories, export/import CSV, choose a currency symbol
 
+The UI uses a soft pastel Material 3 theme (lavender / mint / blush on a cream surface). See `lib/core/theme/app_theme.dart`.
+
 ## Getting Started
 
 ### Prerequisites

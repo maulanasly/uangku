@@ -4,6 +4,12 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Uangku uses the camera to scan receipts and extract transaction details.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Uangku accesses your photos so you can import an existing receipt image.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Uangku may save receipt images to your photo library.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
