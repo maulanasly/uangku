@@ -47,14 +47,19 @@ class ReceiptParser {
       if (amount == null) {
         final containsTotal = totalKeywords.any((kw) => line.contains(kw));
         if (containsTotal) {
-          // Look for number in the current line or next few lines
+          // Look for numbers in the current line or next few lines and pick the largest
+          double? best;
           for (int j = i; j < i + 3 && j < lines.length; j++) {
             final textToSearch = lines[j].replaceAll(RegExp(r'[^\d.]'), '');
             final parsedAmount = double.tryParse(textToSearch);
             if (parsedAmount != null && parsedAmount > 0) {
-              amount = parsedAmount;
-              break;
+              if (best == null || parsedAmount > best) {
+                best = parsedAmount;
+              }
             }
+          }
+          if (best != null) {
+            amount = best;
           }
         }
       }
