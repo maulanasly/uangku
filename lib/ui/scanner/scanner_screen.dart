@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/utils/receipt_parser.dart';
 import '../../core/services/gemini_service.dart';
+import '../../core/services/ocr_service.dart';
+import '../../core/utils/receipt_parser.dart';
 import '../../providers/database_provider.dart';
-import '../../data/database/database.dart';
-import '../../core/models/transaction_type.dart';
+import 'receipt_draft.dart';
+import 'review_transaction_dialog.dart';
 
 class ScannerScreen extends ConsumerStatefulWidget {
   const ScannerScreen({super.key});
@@ -30,11 +31,9 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
 
     try {
-      final bytes = await image.readAsBytes();
-      final parsedData = await _geminiService.parseReceiptFromBytes(bytes, mimeType: image.mimeType ?? 'image/jpeg');
-
+      final parsed = await _parseImage(image);
       if (mounted) {
-        _showReviewDialog(parsedData);
+        await _showReviewDialog(parsed);
       }
     } catch (e) {
       if (mounted) {
@@ -49,54 +48,37 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  void _showReviewDialog(ReceiptData data) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Review Transaction'),
-          content: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('Merchant: ${data.merchant ?? "Not found"}'),
-                Text('Amount: ${data.amount != null ? data.amount.toString() : "Not found"}'),
-                Text('Date: ${data.date != null ? data.date.toString().split(" ")[0] : "Not found"}'),
-                const SizedBox(height: 16),
-                const Text('Does this look correct?'),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final repo = ref.read(transactionRepositoryProvider);
-                final transaction = TransactionsCompanion.insert(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  date: data.date ?? DateTime.now(),
-                  amount: data.amount ?? 0.0,
-                  category: 'cat_food', // Defaulting for now
-                  merchant: data.merchant ?? 'Unknown',
-                  note: 'Scanned from receipt (Gemini AI)',
-                  type: TransactionType.expense,
-                );
-                repo.addTransaction(transaction);
+  Future<({ReceiptData data, bool usedLocalOcr})> _parseImage(XFile image) async {
+    try {
+      final text = await ocrService.extractTextFromFile(image.path);
+      return (data: ReceiptParser.parseLines(text.split('\n')), usedLocalOcr: true);
+    } catch (_) {
+      final bytes = await image.readAsBytes();
+      final data = await _geminiService.parseReceiptFromBytes(
+        bytes,
+        mimeType: image.mimeType ?? 'image/jpeg',
+      );
+      return (data: data, usedLocalOcr: false);
+    }
+  }
 
-                Navigator.pop(context);
-                context.pop(); // Go back to dashboard
-              },
-              child: const Text('Save Transaction'),
-            ),
-          ],
-        );
-      },
+  Future<void> _showReviewDialog(({ReceiptData data, bool usedLocalOcr}) parsed) async {
+    final companion = await showReviewTransactionDialog(
+      context,
+      draft: ReceiptDraft.fromReceiptData(parsed.data),
+      usedLocalOcr: parsed.usedLocalOcr,
     );
+
+    if (companion == null) {
+      return;
+    }
+
+    final repo = ref.read(transactionRepositoryProvider);
+    await repo.addTransaction(companion);
+    if (!mounted) {
+      return;
+    }
+    context.pop();
   }
 
   @override
@@ -110,7 +92,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                 children: [
                   CircularProgressIndicator(),
                   SizedBox(height: 16),
-                  Text('Analyzing Receipt with Gemini AI...'),
+                  Text('Analyzing Receipt...'),
                 ],
               )
             : Column(
