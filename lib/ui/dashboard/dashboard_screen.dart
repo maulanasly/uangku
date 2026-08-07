@@ -7,6 +7,8 @@ import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../core/models/transaction_type.dart';
+import '../../core/utils/summary_calculator.dart';
+import '../../data/database/database.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -14,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionsProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -31,21 +34,22 @@ class DashboardScreen extends ConsumerWidget {
       ),
       body: transactionsAsync.when(
         data: (transactions) {
+          final now = DateTime.now();
+          final summary = SummaryCalculator.forMonth(transactions, now);
+
           if (transactions.isEmpty) {
             return const Center(child: Text('No transactions yet. Scan a receipt!'));
           }
 
-          double income = 0;
-          double expense = 0;
-
-          for (final t in transactions) {
-            if (t.type == TransactionType.income) {
-              income += t.amount;
-            } else {
-              expense += t.amount;
-            }
+          final categories = categoriesAsync.valueOrNull ?? [];
+          String categoryName(String id) {
+            return categories.firstWhere(
+              (c) => c.id == id,
+              orElse: () => categories.isEmpty
+                  ? CategoryEntity(id: id, name: id, icon: 'category')
+                  : categories.first,
+            ).name;
           }
-          final balance = income - expense;
 
           final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 2);
 
@@ -59,9 +63,9 @@ class DashboardScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
                         children: [
-                          const Text('Current Balance', style: TextStyle(fontSize: 16)),
+                          const Text('This Month', style: TextStyle(fontSize: 16)),
                           Text(
-                            currencyFormat.format(balance),
+                            currencyFormat.format(summary.balance),
                             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 16),
@@ -72,14 +76,14 @@ class DashboardScreen extends ConsumerWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   const Text('Income', style: TextStyle(color: Colors.green)),
-                                  Text(currencyFormat.format(income), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(currencyFormat.format(summary.income), style: const TextStyle(fontWeight: FontWeight.bold)),
                                 ],
                               ),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   const Text('Expense', style: TextStyle(color: Colors.red)),
-                                  Text(currencyFormat.format(expense), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text(currencyFormat.format(summary.expense), style: const TextStyle(fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ],
@@ -93,26 +97,26 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: SizedBox(
-                    height: 200,
-                    child: PieChart(
-                      PieChartData(
-                        sections: [
-                          PieChartSectionData(
-                            color: Colors.green,
-                            value: income > 0 ? income : 1,
-                            title: 'Income',
-                            radius: 50,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Spending by Category', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      if (summary.categoryBreakdown.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: Text('No expenses this month')),
+                        )
+                      else
+                        SizedBox(
+                          height: 220,
+                          child: PieChart(
+                            PieChartData(
+                              sections: _buildSections(summary.categoryBreakdown, categoryName),
+                            ),
                           ),
-                          PieChartSectionData(
-                            color: Colors.red,
-                            value: expense > 0 ? expense : 1,
-                            title: 'Expense',
-                            radius: 50,
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
@@ -215,5 +219,36 @@ class DashboardScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  List<PieChartSectionData> _buildSections(
+    Map<String, double> breakdown,
+    String Function(String) categoryName,
+  ) {
+    const palette = [
+      Colors.blue,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.lime,
+      Colors.brown,
+    ];
+
+    final total = breakdown.values.fold<double>(0, (a, b) => a + b);
+    final sorted = breakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return [
+      for (var i = 0; i < sorted.length; i++)
+        PieChartSectionData(
+          color: palette[i % palette.length],
+          value: sorted[i].value,
+          title: '${categoryName(sorted[i].key)}\n${((sorted[i].value / total) * 100).toStringAsFixed(0)}%',
+          radius: 50,
+          titleStyle: const TextStyle(fontSize: 11, color: Colors.white),
+        ),
+    ];
   }
 }
