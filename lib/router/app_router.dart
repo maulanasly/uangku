@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../ui/dashboard/dashboard_screen.dart';
 import '../ui/scanner/scanner_screen.dart';
 import '../ui/settings/settings_screen.dart';
+import '../ui/settings/categories_screen.dart';
 import '../ui/analytics/analytics_screen.dart';
 import '../ui/transactions/add_transaction_screen.dart';
 import '../ui/transactions/transactions_screen.dart';
@@ -39,6 +40,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/settings',
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: '/categories',
+      builder: (context, state) => const CategoriesScreen(),
     ),
   ],
 );

@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:csv/csv.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-
+import 'package:file_picker/file_picker.dart';
 
 import '../../providers/transaction_provider.dart';
+import '../../providers/database_provider.dart';
+import '../../data/database/database.dart';
+import '../models/transaction_type.dart';
 
 final exportServiceProvider = Provider((ref) {
   return ExportService(ref);
@@ -85,6 +88,76 @@ class ExportService {
       final xFile = XFile(path);
       // ignore: deprecated_member_use
       await Share.shareXFiles([xFile], text: 'My Uangku Transactions');
+    }
+  }
+
+  Future<void> importTransactionsFromCsv() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['csv'],
+    );
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final file = result.files.single;
+    final Uint8List bytes;
+    if (file.bytes != null) {
+      bytes = file.bytes!;
+    } else {
+      bytes = await File(file.path!).readAsBytes();
+    }
+
+    final content = utf8.decode(bytes);
+    final rows = Csv().decode(content);
+    if (rows.length <= 1) {
+      throw Exception('CSV has no data rows');
+    }
+
+    final categories = await _ref.read(transactionRepositoryProvider).getCategories();
+    final byId = {for (final c in categories) c.id: c};
+    final byName = {for (final c in categories) c.name: c};
+    final fallback = categories.isNotEmpty ? categories.first.id : null;
+
+    String? resolveCategory(String value) {
+      final v = value.trim();
+      if (byId.containsKey(v)) {
+        return v;
+      }
+      if (byName.containsKey(v)) {
+        return byName[v]!.id;
+      }
+      return fallback;
+    }
+
+    final repo = _ref.read(transactionRepositoryProvider);
+    for (var i = 1; i < rows.length; i++) {
+      final row = rows[i];
+      if (row.length < 6) {
+        continue;
+      }
+      final date = DateTime.tryParse(row[0].toString());
+      final amount = double.tryParse(row[4].toString());
+      if (date == null || amount == null) {
+        continue;
+      }
+      final typeName = row[3].toString().toLowerCase();
+      final type = typeName == 'income' ? TransactionType.income : TransactionType.expense;
+      final category = resolveCategory(row[2].toString());
+      if (category == null) {
+        continue;
+      }
+      await repo.addTransaction(
+        TransactionsCompanion.insert(
+          id: 'import_${DateTime.now().microsecondsSinceEpoch}_$i',
+          date: date,
+          amount: amount,
+          category: category,
+          merchant: row[1].toString(),
+          note: row[5].toString(),
+          type: type,
+        ),
+      );
     }
   }
 }

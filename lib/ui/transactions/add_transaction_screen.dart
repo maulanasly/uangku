@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_type.dart';
 import '../../providers/database_provider.dart';
+import '../../providers/transaction_provider.dart';
 import '../../data/database/database.dart';
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -38,12 +39,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     _selectedCategory = t?.category ?? 'cat_food';
   }
 
-  final List<Map<String, String>> _categories = [
-    {'id': 'cat_food', 'name': 'Food & Dining'},
-    {'id': 'cat_transport', 'name': 'Transportation'},
-    {'id': 'cat_salary', 'name': 'Salary'},
-  ];
-
   @override
   void dispose() {
     _amountController.dispose();
@@ -64,6 +59,16 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
         _selectedDate = picked;
       });
     }
+  }
+
+  String _selectedCategoryFor(List<CategoryEntity>? categories) {
+    if (categories == null || categories.isEmpty) {
+      return _selectedCategory;
+    }
+    if (categories.any((c) => c.id == _selectedCategory)) {
+      return _selectedCategory;
+    }
+    return categories.first.id;
   }
 
   void _saveTransaction() {
@@ -101,6 +106,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categoriesAsync = ref.watch(categoriesProvider);
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.transaction != null ? 'Edit Transaction' : 'Add Transaction'),
@@ -180,17 +186,18 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
 
               // Category
               DropdownButtonFormField<String>(
-                initialValue: _selectedCategory,
+                initialValue: _selectedCategoryFor(categoriesAsync.valueOrNull),
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
-                items: _categories.map((cat) {
-                  return DropdownMenuItem<String>(
-                    value: cat['id'],
-                    child: Text(cat['name']!),
-                  );
-                }).toList(),
+                items: [
+                  for (final cat in categoriesAsync.valueOrNull ?? [])
+                    DropdownMenuItem<String>(
+                      value: cat.id,
+                      child: Text(cat.name),
+                    ),
+                ],
                 onChanged: (String? newValue) {
                   if (newValue != null) {
                     setState(() {

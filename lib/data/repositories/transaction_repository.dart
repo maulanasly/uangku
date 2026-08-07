@@ -12,6 +12,14 @@ class TransactionRepository {
 
   Future<void> addCategory(CategoriesCompanion category) => _db.into(_db.categories).insert(category);
 
+  Future<void> updateCategory(CategoryEntity category) {
+    return _db.update(_db.categories).replace(category);
+  }
+
+  Future<void> deleteCategory(String id) {
+    return (_db.delete(_db.categories)..where((c) => c.id.equals(id))).go();
+  }
+
   // Transactions
   Stream<List<TransactionEntity>> watchAllTransactions() {
     final query = _db.select(_db.transactions)
