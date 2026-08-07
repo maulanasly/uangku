@@ -191,11 +191,11 @@ class ReceiptParser {
       // Skip date lines.
       if (_dateRegex.hasMatch(raw)) continue;
 
-      // Skip label rows.
-      if (_labelNoise.any((kw) => lower.contains(kw))) continue;
+      // Skip label rows (whole-word match only).
+      if (_labelNoise.any((kw) => _containsWord(lower, kw))) continue;
 
-      // Skip payment-method-dominant lines.
-      if (_paymentNoise.any((kw) => lower.startsWith(kw) || lower == kw)) continue;
+      // Skip payment-method-dominant lines (whole-word match only).
+      if (_paymentNoise.any((kw) => _containsWord(lower, kw))) continue;
 
       // Strip leading SKU code.
       raw = raw.replaceFirst(_skuPrefixRegex, '');
@@ -237,12 +237,21 @@ class ReceiptParser {
     return items;
   }
 
+  /// Checks whether [text] contains [word] as a whole word (not as substring).
+  static bool _containsWord(String text, String word) {
+    final escaped = word.replaceAllMapped(
+      RegExp(r'[.*+?^${}()|[\]\\]'),
+      (m) => '\\${m[0]}',
+    );
+    return RegExp('\\b$escaped\\b', caseSensitive: false).hasMatch(text);
+  }
+
   static bool _looksLikeItemName(String name) {
     final trimmed = name.trim();
     if (trimmed.length < 2) return false;
     if (RegExp(r'^[\d\s.,\-:/]+$').hasMatch(trimmed)) return false;
     final lower = trimmed.toLowerCase();
-    if (_labelNoise.any((kw) => lower.contains(kw))) return false;
+    if (_labelNoise.any((kw) => _containsWord(lower, kw))) return false;
     return true;
   }
 
