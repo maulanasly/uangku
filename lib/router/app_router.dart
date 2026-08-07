@@ -6,6 +6,7 @@ import '../ui/dashboard/dashboard_screen.dart';
 import '../ui/scanner/scanner_screen.dart';
 import '../ui/settings/settings_screen.dart';
 import '../ui/transactions/add_transaction_screen.dart';
+import '../ui/transactions/transactions_screen.dart';
 import '../data/database/database.dart';
 
 final appRouter = GoRouter(
@@ -14,6 +15,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (context, state) => const DashboardScreen(),
+    ),
+    GoRoute(
+      path: '/transactions',
+      builder: (context, state) => const TransactionsScreen(),
     ),
     GoRoute(
       path: '/scanner',
