@@ -92,4 +92,39 @@ void main() {
       expect(summary.categoryBreakdown, isEmpty);
     });
   });
+
+  group('SummaryCalculator month helpers', () {
+    test('isSameMonth compares year and month', () {
+      expect(
+        SummaryCalculator.isSameMonth(DateTime(2026, 7, 1), DateTime(2026, 7, 31)),
+        isTrue,
+      );
+      expect(
+        SummaryCalculator.isSameMonth(DateTime(2026, 7, 1), DateTime(2026, 8, 1)),
+        isFalse,
+      );
+      expect(
+        SummaryCalculator.isSameMonth(DateTime(2026, 7, 1), DateTime(2027, 7, 1)),
+        isFalse,
+      );
+    });
+
+    test('shiftMonth wraps across year boundaries', () {
+      expect(SummaryCalculator.shiftMonth(DateTime(2026, 1), -1), DateTime(2025, 12));
+      expect(SummaryCalculator.shiftMonth(DateTime(2026, 12), 1), DateTime(2027, 1));
+      expect(SummaryCalculator.shiftMonth(DateTime(2026, 7), 3), DateTime(2026, 10));
+    });
+
+    test('filterByMonth returns only transactions in the given month', () {
+      final transactions = [
+        _tx(id: '1', date: DateTime(2026, 7, 10), amount: 50, category: 'cat_food'),
+        _tx(id: '2', date: DateTime(2026, 6, 30), amount: 30, category: 'cat_food'),
+        _tx(id: '3', date: DateTime(2026, 7, 1), amount: 40, category: 'cat_food'),
+      ];
+
+      final filtered = SummaryCalculator.filterByMonth(transactions, month);
+
+      expect(filtered.map((t) => t.id), ['1', '3']);
+    });
+  });
 }
