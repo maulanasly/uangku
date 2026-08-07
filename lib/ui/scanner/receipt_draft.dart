@@ -1,6 +1,35 @@
+import 'package:drift/drift.dart';
+
 import '../../core/models/transaction_type.dart';
 import '../../core/utils/receipt_parser.dart';
 import '../../data/database/database.dart';
+
+class ReceiptItemDraft {
+  String id;
+  String name;
+  double quantity;
+  double total;
+
+  ReceiptItemDraft({
+    required this.id,
+    required this.name,
+    this.quantity = 1,
+    required this.total,
+  });
+
+  double? get unitPrice => quantity > 0 ? total / quantity : null;
+
+  TransactionItemsCompanion toCompanion(String transactionId) {
+    return TransactionItemsCompanion.insert(
+      id: id,
+      transactionId: transactionId,
+      name: name,
+      quantity: Value(quantity),
+      unitPrice: Value(unitPrice),
+      total: total,
+    );
+  }
+}
 
 class ReceiptDraft {
   final String merchant;
@@ -9,14 +38,16 @@ class ReceiptDraft {
   final String category;
   final TransactionType type;
   final String note;
+  final List<ReceiptItemDraft> items;
 
-  const ReceiptDraft({
+  ReceiptDraft({
     required this.merchant,
     required this.amountText,
     required this.date,
     required this.category,
     required this.type,
     required this.note,
+    this.items = const [],
   });
 
   factory ReceiptDraft.fromReceiptData(ReceiptData data) {
@@ -27,6 +58,15 @@ class ReceiptDraft {
       category: 'cat_food',
       type: TransactionType.expense,
       note: '',
+      items: [
+        for (int i = 0; i < data.items.length; i++)
+          ReceiptItemDraft(
+            id: 'item_$i',
+            name: data.items[i].name,
+            quantity: data.items[i].quantity,
+            total: data.items[i].total,
+          ),
+      ],
     );
   }
 
@@ -37,6 +77,7 @@ class ReceiptDraft {
     String? category,
     TransactionType? type,
     String? note,
+    List<ReceiptItemDraft>? items,
   }) {
     return ReceiptDraft(
       merchant: merchant ?? this.merchant,
@@ -45,6 +86,7 @@ class ReceiptDraft {
       category: category ?? this.category,
       type: type ?? this.type,
       note: note ?? this.note,
+      items: items ?? this.items,
     );
   }
 

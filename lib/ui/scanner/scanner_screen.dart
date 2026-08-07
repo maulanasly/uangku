@@ -63,18 +63,18 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _showReviewDialog(({ReceiptData data, bool usedLocalOcr}) parsed) async {
-    final companion = await showReviewTransactionDialog(
+    final result = await showReviewTransactionDialog(
       context,
       draft: ReceiptDraft.fromReceiptData(parsed.data),
       usedLocalOcr: parsed.usedLocalOcr,
     );
 
-    if (companion == null) {
+    if (result == null) {
       return;
     }
 
     final repo = ref.read(transactionRepositoryProvider);
-    await repo.addTransaction(companion);
+    await repo.addTransactionWithItems(result.transaction, result.items);
     if (!mounted) {
       return;
     }

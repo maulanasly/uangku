@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -7,12 +8,14 @@ import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 import 'receipt_draft.dart';
 
-Future<TransactionsCompanion?> showReviewTransactionDialog(
+Future<({TransactionsCompanion transaction, List<TransactionItemsCompanion> items})?>
+    showReviewTransactionDialog(
   BuildContext context, {
   required ReceiptDraft draft,
   required bool usedLocalOcr,
 }) {
-  return showDialog<TransactionsCompanion>(
+  return showDialog<
+      ({TransactionsCompanion transaction, List<TransactionItemsCompanion> items})>(
     context: context,
     barrierDismissible: false,
     builder: (context) => _ReviewTransactionDialog(
@@ -32,10 +35,12 @@ class _ReviewTransactionDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<_ReviewTransactionDialog> createState() => _ReviewTransactionDialogState();
+  ConsumerState<_ReviewTransactionDialog> createState() =>
+      _ReviewTransactionDialogState();
 }
 
-class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDialog> {
+class _ReviewTransactionDialogState
+    extends ConsumerState<_ReviewTransactionDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _merchantController;
   late final TextEditingController _amountController;
@@ -71,16 +76,66 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
     }
   }
 
+  void _sumItemsToAmount() {
+    final sum = _draft.items.fold<double>(0, (s, i) => s + i.total);
+    _amountController.text = sum == sum.truncateToDouble()
+        ? sum.toStringAsFixed(0)
+        : sum.toStringAsFixed(2);
+  }
+
+  void _addItem() {
+    setState(() {
+      _draft = _draft.copyWith(
+        items: [
+          ..._draft.items,
+          ReceiptItemDraft(
+            id: 'item_${_draft.items.length}',
+            name: '',
+            total: 0,
+          ),
+        ],
+      );
+    });
+  }
+
+  void _removeItem(int index) {
+    setState(() {
+      final updated = [..._draft.items];
+      updated.removeAt(index);
+      _draft = _draft.copyWith(items: updated);
+    });
+  }
+
+  void _updateItem(int index, ReceiptItemDraft updated) {
+    setState(() {
+      final items = [..._draft.items];
+      items[index] = updated;
+      _draft = _draft.copyWith(items: items);
+    });
+  }
+
   void _save() {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    final draft = _draft.copyWith(
+    final transaction = _draft.copyWith(
       merchant: _merchantController.text.trim(),
       amountText: _amountController.text.trim(),
       note: _noteController.text.trim(),
     );
-    Navigator.pop(context, draft.toCompanion());
+    final companion = transaction.toCompanion();
+    final txId = companion.id.value;
+    final itemCompanions = transaction.items
+        .where((i) => i.name.isNotEmpty && i.total > 0)
+        .toList()
+        .asMap()
+        .entries
+        .map((e) => e.value.toCompanion(txId).copyWith(position: Value(e.key)))
+        .toList();
+    Navigator.pop(
+      context,
+      (transaction: companion, items: itemCompanions),
+    );
   }
 
   @override
@@ -97,7 +152,9 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                widget.usedLocalOcr ? 'Scanned on device (ML Kit)' : 'Scanned with Gemini AI',
+                widget.usedLocalOcr
+                    ? 'Scanned on device (ML Kit)'
+                    : 'Scanned with Gemini AI',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
               const SizedBox(height: 16),
@@ -121,8 +178,13 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
                   labelText: 'Amount',
                   prefixText: '\$ ',
                   border: OutlineInputBorder(),
+                  suffixIcon: Tooltip(
+                    message: 'Sum item totals',
+                    child: Icon(Icons.functions),
+                  ),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Please enter an amount';
@@ -133,6 +195,42 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
                   return null;
                 },
               ),
+              if (_draft.items.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Items',
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: _sumItemsToAmount,
+                          icon: const Icon(Icons.functions, size: 16),
+                          label: const Text('Sum'),
+                        ),
+                        const SizedBox(width: 4),
+                        TextButton.icon(
+                          onPressed: _addItem,
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ..._buildItemEditors(),
+              ] else ...[
+                const SizedBox(height: 12),
+                TextButton.icon(
+                  onPressed: _addItem,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add item'),
+                ),
+              ],
               const SizedBox(height: 12),
               InkWell(
                 onTap: _selectDate,
@@ -159,7 +257,10 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
                 ),
                 items: [
                   for (final cat in categoriesAsync.valueOrNull ?? [])
-                    DropdownMenuItem<String>(value: cat.id, child: Text(cat.name)),
+                    DropdownMenuItem<String>(
+                      value: cat.id,
+                      child: Text(cat.name),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) {
@@ -183,7 +284,9 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
                 ],
                 selected: {_draft.type},
                 onSelectionChanged: (selection) {
-                  setState(() => _draft = _draft.copyWith(type: selection.first));
+                  setState(
+                    () => _draft = _draft.copyWith(type: selection.first),
+                  );
                 },
               ),
               const SizedBox(height: 12),
@@ -210,5 +313,101 @@ class _ReviewTransactionDialogState extends ConsumerState<_ReviewTransactionDial
         ),
       ],
     );
+  }
+
+  List<Widget> _buildItemEditors() {
+    return List.generate(_draft.items.length, (i) {
+      final item = _draft.items[i];
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 3,
+              child: TextFormField(
+                initialValue: item.name,
+                decoration: const InputDecoration(
+                  hintText: 'Item name',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                ),
+                onChanged: (v) =>
+                    _updateItem(i, ReceiptItemDraft(id: item.id, name: v, total: item.total)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 56,
+              child: TextFormField(
+                initialValue: item.quantity == item.quantity.truncateToDouble()
+                    ? item.quantity.toStringAsFixed(0)
+                    : item.quantity.toString(),
+                decoration: const InputDecoration(
+                  hintText: 'Qty',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                ),
+                keyboardType: TextInputType.number,
+                onChanged: (v) {
+                  final qty = double.tryParse(v) ?? 1;
+                  final unitPrice = item.unitPrice ?? item.total;
+                  _updateItem(
+                    i,
+                    ReceiptItemDraft(
+                      id: item.id,
+                      name: item.name,
+                      quantity: qty,
+                      total: unitPrice * qty,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 6),
+            SizedBox(
+              width: 80,
+              child: TextFormField(
+                initialValue: item.total == item.total.truncateToDouble()
+                    ? item.total.toStringAsFixed(0)
+                    : item.total.toStringAsFixed(2),
+                decoration: const InputDecoration(
+                  hintText: 'Total',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                ),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (v) {
+                  final total = double.tryParse(v) ?? 0;
+                  _updateItem(
+                    i,
+                    ReceiptItemDraft(
+                      id: item.id,
+                      name: item.name,
+                      quantity: item.quantity,
+                      total: total,
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18),
+              onPressed: () => _removeItem(i),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            ),
+          ],
+        ),
+      );
+    });
   }
 }

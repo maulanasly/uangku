@@ -55,14 +55,25 @@ Return the result strictly as a valid JSON object without any markdown wrapping 
 
 Fields to extract:
 - merchant: (string) The name of the store or merchant.
-- amount: (double) The total amount of the transaction.
+- amount: (double) The final total amount of the transaction (after tax and discounts).
 - date: (string) The date in YYYY-MM-DD format.
+- items: (array) Every purchased line item on the receipt. Skip subtotal, tax, discount, total, cash, change, and other summary rows.
+
+Each item is an object with:
+- name: (string) Item description as printed.
+- quantity: (double) Number of units purchased. Default to 1 if not shown.
+- unitPrice: (double, optional) Price per unit if shown, otherwise omit.
+- total: (double) Line total (quantity * unitPrice).
 
 Example JSON output:
 {
   "merchant": "Target",
   "amount": 25.50,
-  "date": "2023-10-25"
+  "date": "2023-10-25",
+  "items": [
+    { "name": "Milk 1L", "quantity": 2, "unitPrice": 3.50, "total": 7.00 },
+    { "name": "Bread", "quantity": 1, "unitPrice": 4.50, "total": 4.50 }
+  ]
 }
 ''');
 

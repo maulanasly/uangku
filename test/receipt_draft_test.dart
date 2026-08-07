@@ -46,4 +46,44 @@ void main() {
       expect(companion.amount.value, 10.0);
     });
   });
+
+  group('ReceiptItemDraft', () {
+    test('unitPrice is derived from total / quantity', () {
+      final item = ReceiptItemDraft(id: 'i1', name: 'Tea', quantity: 3, total: 45);
+      expect(item.unitPrice, 15.0);
+    });
+
+    test('unitPrice is null when quantity is 0', () {
+      final item = ReceiptItemDraft(id: 'i1', name: 'Tea', quantity: 0, total: 45);
+      expect(item.unitPrice, isNull);
+    });
+  });
+
+  group('ReceiptDraft items from ReceiptData', () {
+    test('populates items from ReceiptData', () {
+      final data = ReceiptData(
+        merchant: 'Toko',
+        amount: 100,
+        items: [
+          const ReceiptItem(name: 'Item A', total: 60),
+          const ReceiptItem(name: 'Item B', total: 40),
+        ],
+      );
+      final draft = ReceiptDraft.fromReceiptData(data);
+      expect(draft.items.length, 2);
+      expect(draft.items[0].name, 'Item A');
+      expect(draft.items[0].total, 60);
+    });
+
+    test('preserves items through copyWith', () {
+      final data = ReceiptData(
+        merchant: 'Toko',
+        amount: 50,
+        items: [const ReceiptItem(name: 'Item A', total: 50)],
+      );
+      final draft = ReceiptDraft.fromReceiptData(data).copyWith(amountText: '55');
+      expect(draft.items.length, 1);
+      expect(draft.items[0].name, 'Item A');
+    });
+  });
 }

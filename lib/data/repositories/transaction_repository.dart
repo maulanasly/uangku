@@ -59,6 +59,25 @@ class TransactionRepository {
     return _db.into(_db.transactions).insert(transaction);
   }
 
+  Future<void> addTransactionWithItems(
+    Insertable<TransactionEntity> transaction,
+    List<TransactionItemsCompanion> items,
+  ) {
+    return _db.transaction(() async {
+      await _db.into(_db.transactions).insert(transaction);
+      for (final item in items) {
+        await _db.into(_db.transactionItems).insert(item);
+      }
+    });
+  }
+
+  Stream<List<TransactionItemEntity>> watchItemsFor(String transactionId) {
+    return (_db.select(_db.transactionItems)
+          ..where((t) => t.transactionId.equals(transactionId))
+          ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+        .watch();
+  }
+
   Future<void> updateTransaction(TransactionEntity transaction) {
     return _db.update(_db.transactions).replace(transaction);
   }

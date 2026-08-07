@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -134,6 +135,52 @@ void main() {
 
       await repo.deleteTransaction('5');
       expect((await repo.watchAllTransactions().first).length, 4);
+    });
+  });
+
+  group('TransactionRepository items', () {
+    test('adds transaction with items', () async {
+      await repo.addTransactionWithItems(
+        TransactionsCompanion.insert(
+          id: '5',
+          date: DateTime(2026, 7, 5),
+          amount: 67,
+          category: 'cat_food',
+          merchant: 'Co-op',
+          note: '',
+          type: TransactionType.expense,
+        ),
+        [
+          TransactionItemsCompanion.insert(
+            id: '5-0',
+            transactionId: '5',
+            name: 'Milk',
+            quantity: Value(2),
+            unitPrice: Value(4.5),
+            total: 9,
+          ),
+          TransactionItemsCompanion.insert(
+            id: '5-1',
+            transactionId: '5',
+            name: 'Bread',
+            quantity: Value(1),
+            total: 4.5,
+          ),
+        ],
+      );
+
+      final items = await repo.watchItemsFor('5').first;
+      expect(items.length, 2);
+      expect(items[0].name, 'Milk');
+      expect(items[0].total, 9);
+      expect(items[1].name, 'Bread');
+    });
+
+    test('items cascade delete with transaction', () async {
+      // from the add test above, '5' has items
+      await repo.deleteTransaction('5');
+      final items = await repo.watchItemsFor('5').first;
+      expect(items, isEmpty);
     });
   });
 }

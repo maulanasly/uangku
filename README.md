@@ -7,11 +7,11 @@ A personal money tracker built with Flutter. Track income and expenses, scan rec
 - **Dashboard** — monthly income, expense, and balance with a category breakdown and month navigation
 - **Transactions** — search, filter, and sort your transaction history
 - **Add Transaction** — manual entry or receipt scanning
-- **Receipt Scanner** — on-device OCR with a review step before saving
+- **Receipt Scanner** — on-device OCR that extracts individual line items (name, quantity, price) alongside merchant, total, and date. Scanned data is editable in a review dialog before saving.
 - **Analytics** — monthly trends, category spending, income vs expense
 - **Settings** — manage categories, export/import CSV, choose a currency symbol
 
-The UI uses a soft pastel Material 3 theme (lavender / mint / blush on a cream surface). See `lib/core/theme/app_theme.dart`.
+The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v2).
 
 ## Getting Started
 

@@ -25,3 +25,18 @@ class Transactions extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('TransactionItemEntity')
+class TransactionItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get transactionId =>
+      text().references(Transactions, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  RealColumn get quantity => real().withDefault(const Constant(1))();
+  RealColumn get unitPrice => real().nullable()();
+  RealColumn get total => real()();
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

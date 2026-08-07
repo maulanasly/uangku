@@ -107,6 +107,69 @@ void main() {
       expect(data.date, isNull);
       expect(data.amount, isNull);
     });
+
+    test('extracts line items between merchant and total', () {
+      final data = ReceiptParser.parseLines([
+        'Toko Makmur',
+        'Beras 5kg     75.00',
+        'Minyak Goreng  25.00',
+        'Gula Pasir    15.50',
+        'TOTAL        115.50',
+      ]);
+
+      expect(data.items.length, 3);
+      expect(data.items[0].name, 'Beras 5kg');
+      expect(data.items[0].total, 75.0);
+      expect(data.items[1].name, 'Minyak Goreng');
+      expect(data.items[1].total, 25.0);
+      expect(data.items[2].name, 'Gula Pasir');
+      expect(data.items[2].total, 15.5);
+      expect(data.amount, 115.5);
+    });
+
+    test('filters subtotal/tax/total rows from items', () {
+      final data = ReceiptParser.parseLines([
+        'Toko ABC',
+        'Item A  10.00',
+        'Subtotal  10.00',
+        'PPN 11%    1.10',
+        'TOTAL    11.10',
+      ]);
+
+      expect(data.items.length, 1);
+      expect(data.items[0].name, 'Item A');
+    });
+
+    test('parses qty x unitPrice pattern with indonesian format', () {
+      final data = ReceiptParser.parseLines([
+        'Toko Sejahtera',
+        'Kopi Susu 2 x 15.500 31.000',
+        'Teh Manis 1 x 5.000  5.000',
+        'TOTAL  36.000',
+      ]);
+
+      expect(data.items.length, 2);
+      expect(data.items[0].name, 'Kopi Susu');
+      expect(data.items[0].quantity, 2);
+      expect(data.items[0].unitPrice, 15500);
+      expect(data.items[0].total, 31000);
+      expect(data.items[1].name, 'Teh Manis');
+      expect(data.items[1].total, 5000);
+    });
+
+    test('handles indonesian thousands separator in amounts', () {
+      final data = ReceiptParser.parseLines([
+        'Toko Maju',
+        'Kompor Gas    250.000',
+        'Selang        15.500',
+        'TOTAL  265.500',
+      ]);
+
+      expect(data.items.length, 2);
+      expect(data.items[0].total, 250000);
+      expect(data.items[1].total, 15500);
+      expect(data.amount, 265500);
+    });
   });
 
   group('ReceiptParser.parseGeminiJson', () {
@@ -136,6 +199,32 @@ void main() {
       expect(data.merchant, isNull);
       expect(data.amount, isNull);
       expect(data.date, isNull);
+    });
+
+    test('parses items array from Gemini response', () {
+      final data = ReceiptParser.parseGeminiJson('''
+{
+  "merchant": "Co-op",
+  "amount": 67.00,
+  "date": "2026-08-01",
+  "items": [
+    { "name": "Milk", "quantity": 2, "unitPrice": 4.50, "total": 9.00 },
+    { "name": "Bread", "quantity": 1, "total": 4.50 },
+    { "name": "Eggs", "total": 53.50 }
+  ]
+}
+''');
+
+      expect(data.merchant, 'Co-op');
+      expect(data.amount, 67.0);
+      expect(data.items.length, 3);
+      expect(data.items[0].name, 'Milk');
+      expect(data.items[0].quantity, 2);
+      expect(data.items[0].unitPrice, 4.5);
+      expect(data.items[0].total, 9.0);
+      expect(data.items[1].total, 4.5);
+      expect(data.items[1].unitPrice, isNull);
+      expect(data.items[2].total, 53.5);
     });
   });
 }
