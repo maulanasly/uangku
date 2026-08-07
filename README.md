@@ -65,13 +65,14 @@ Database (Drift)
 
 ### Receipt OCR
 
-Receipt scanning runs fully on-device:
+Receipt scanning runs on-device or via cloud APIs:
 
 - **iOS / macOS** — Apple Vision (text recognition)
 - **Android** — Google ML Kit Text Recognition
-- **Web** — not available; falls back to the Gemini API (`gemini-1.5-flash`) for parsing
+- **Cloud fallback** — OCR.space (free API, no key needed) or Gemini (requires `GEMINI_API_KEY`)
+- **Web** — only cloud APIs (OCR.space / Gemini)
 
-If local OCR returns nothing, the cloud fallback (OCR.space, free API) parses the image. You can also switch to Gemini (requires `GEMINI_API_KEY`) or force a specific engine via the toggle at the top of the scanner screen. Nothing is saved until the user confirms.
+All images are converted to JPEG before processing (HEIC from iOS gallery is handled automatically). Nothing is saved until the user confirms in the review dialog.
 
 ## Definition of Done
 

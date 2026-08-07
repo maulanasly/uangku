@@ -1,7 +1,12 @@
+import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../../core/services/gemini_service.dart';
 import '../../core/services/ocr_cloud_service.dart';
@@ -26,8 +31,32 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final OcrSpaceService _ocrSpaceService = OcrSpaceService();
   bool _isProcessing = false;
 
+  Future<({String path, Uint8List bytes})> _prepareImage(XFile image) async {
+    var bytes = await image.readAsBytes();
+
+    // Convert HEIC to JPEG (most OCR backends don't support HEIC).
+    final compressed = await FlutterImageCompress.compressWithList(
+      bytes,
+      quality: 80,
+      format: CompressFormat.jpeg,
+    );
+    if (compressed != null) {
+      bytes = compressed;
+    }
+
+    // Write JPEG bytes to a temp file so ML Kit can read from path.
+    final tempDir = await getTemporaryDirectory();
+    final tempFile = File(
+      '${tempDir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.jpg',
+    );
+    await tempFile.writeAsBytes(bytes);
+
+    return (path: tempFile.path, bytes: bytes);
+  }
+
   Future<void> _processImage(ImageSource source) async {
-    final XFile? image = await _picker.pickImage(source: source, imageQuality: 80);
+    final XFile? image =
+        await _picker.pickImage(source: source, imageQuality: 80);
     if (image == null) return;
 
     setState(() {
@@ -35,7 +64,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
 
     try {
-      final parsed = await _parseImage(image);
+      final prepared = await _prepareImage(image);
+      final parsed = await _parseImage(prepared.path, prepared.bytes);
       if (mounted) {
         await _showReviewDialog(parsed);
       }
@@ -54,34 +84,35 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     }
   }
 
-  Future<({ReceiptData data, String? cloudProvider})> _parseImage(XFile image) async {
-    final bytes = await image.readAsBytes();
+  Future<({ReceiptData data, String? cloudProvider})> _parseImage(
+    String path,
+    Uint8List bytes,
+  ) async {
     final mode = await ref.read(ocrModeProvider.future);
 
-    // Direct cloud modes.
     if (mode == 'gemini') {
       final data = await _geminiService.parseReceiptFromBytes(
         bytes,
-        mimeType: image.mimeType ?? 'image/jpeg',
+        mimeType: 'image/jpeg',
       );
       return (data: data, cloudProvider: 'gemini');
     }
     if (mode == 'ocrspace') {
       final data = await _ocrSpaceService.parseReceiptFromBytes(
         bytes,
-        mimeType: image.mimeType ?? 'image/jpeg',
+        mimeType: 'image/jpeg',
       );
       return (data: data, cloudProvider: 'ocrspace');
     }
 
     // Auto mode: try local OCR first, fallback to OCR.space.
     try {
-      final text = await ocrService.extractText(image.path, bytes);
+      final text = await ocrService.extractText(path, bytes);
       return (data: ReceiptParser.parseLines(text.split('\n')), cloudProvider: null);
     } catch (_) {
       final data = await _ocrSpaceService.parseReceiptFromBytes(
         bytes,
-        mimeType: image.mimeType ?? 'image/jpeg',
+        mimeType: 'image/jpeg',
       );
       return (data: data, cloudProvider: 'ocrspace');
     }
@@ -137,9 +168,21 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     child: modeAsync.when(
                       data: (mode) => SegmentedButton<String>(
                         segments: const [
-                          ButtonSegment(value: 'auto', label: Text('Auto'), icon: Icon(Icons.phone_android)),
-                          ButtonSegment(value: 'gemini', label: Text('Gemini'), icon: Icon(Icons.auto_awesome)),
-                          ButtonSegment(value: 'ocrspace', label: Text('Cloud'), icon: Icon(Icons.cloud)),
+                          ButtonSegment(
+                            value: 'auto',
+                            label: Text('Auto'),
+                            icon: Icon(Icons.phone_android),
+                          ),
+                          ButtonSegment(
+                            value: 'gemini',
+                            label: Text('Gemini'),
+                            icon: Icon(Icons.auto_awesome),
+                          ),
+                          ButtonSegment(
+                            value: 'ocrspace',
+                            label: Text('Cloud'),
+                            icon: Icon(Icons.cloud),
+                          ),
                         ],
                         selected: {mode},
                         onSelectionChanged: (selection) =>
@@ -159,7 +202,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.camera_alt, size: 28),
                               label: const Text('Camera'),
-                              onPressed: () => _processImage(ImageSource.camera),
+                              onPressed: () =>
+                                  _processImage(ImageSource.camera),
                             ),
                           ),
                         ),
@@ -170,7 +214,8 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                             child: ElevatedButton.icon(
                               icon: const Icon(Icons.photo_library, size: 28),
                               label: const Text('Gallery'),
-                              onPressed: () => _processImage(ImageSource.gallery),
+                              onPressed: () =>
+                                  _processImage(ImageSource.gallery),
                             ),
                           ),
                         ),
