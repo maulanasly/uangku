@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/services/export_service.dart';
 
@@ -12,6 +13,11 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          ListTile(
+            title: const Text('Analytics'),
+            leading: const Icon(Icons.bar_chart),
+            onTap: () => context.push('/analytics'),
+          ),
           ListTile(
             title: const Text('Categories'),
             leading: const Icon(Icons.category),
