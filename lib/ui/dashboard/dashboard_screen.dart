@@ -153,10 +153,28 @@ class DashboardScreen extends ConsumerWidget {
                       else
                         SizedBox(
                           height: 220,
-                          child: PieChart(
-                            PieChartData(
-                              sections: _buildSections(summary.categoryBreakdown, categoryName),
-                            ),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              PieChart(
+                                PieChartData(
+                                  sections: _buildSections(
+                                    summary.categoryBreakdown,
+                                    categoryName,
+                                    Theme.of(context).colorScheme,
+                                  ),
+                                  centerSpaceRadius: 45,
+                                  sectionsSpace: 2,
+                                ),
+                              ),
+                              Text(
+                                currencyFormat.format(summary.expense),
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                     ],
@@ -275,19 +293,20 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  List<PieChartSectionData> _buildSections(
+  static List<PieChartSectionData> _buildSections(
     Map<String, double> breakdown,
     String Function(String) categoryName,
+    ColorScheme colors,
   ) {
-    const palette = [
-      Colors.blue,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.indigo,
-      Colors.lime,
-      Colors.brown,
+    final palette = [
+      colors.primary,
+      colors.secondary,
+      colors.tertiary,
+      const Color(0xFFFF6B6B),
+      const Color(0xFFA78BFA),
+      const Color(0xFFF472B6),
+      const Color(0xFF34D399),
+      const Color(0xFFFBBF24),
     ];
 
     final total = breakdown.values.fold<double>(0, (a, b) => a + b);
@@ -299,9 +318,16 @@ class DashboardScreen extends ConsumerWidget {
         PieChartSectionData(
           color: palette[i % palette.length],
           value: sorted[i].value,
-          title: '${categoryName(sorted[i].key)}\n${((sorted[i].value / total) * 100).toStringAsFixed(0)}%',
+          title:
+              '${categoryName(sorted[i].key)}\n${((sorted[i].value / total) * 100).toStringAsFixed(0)}%',
           radius: 50,
-          titleStyle: const TextStyle(fontSize: 11, color: Colors.white),
+          titleStyle: TextStyle(
+            fontSize: 11,
+            color: palette[i % palette.length].computeLuminance() > 0.5
+                ? Colors.black87
+                : Colors.white,
+          ),
+          borderSide: BorderSide.none,
         ),
     ];
   }

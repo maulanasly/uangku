@@ -40,9 +40,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       quality: 80,
       format: CompressFormat.jpeg,
     );
-    if (compressed != null) {
-      bytes = compressed;
-    }
+    bytes = compressed ?? bytes;
 
     // Write JPEG bytes to a temp file so ML Kit can read from path.
     final tempDir = await getTemporaryDirectory();
@@ -197,25 +195,69 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     child: Row(
                       children: [
                         Expanded(
-                          child: SizedBox(
-                            height: 100,
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.camera_alt, size: 28),
-                              label: const Text('Camera'),
-                              onPressed: () =>
-                                  _processImage(ImageSource.camera),
+                          child: Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _processImage(ImageSource.camera),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Column(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 34,
+                                      backgroundColor: Color(0xFF4F8CFF),
+                                      child: Icon(
+                                        Icons.camera_alt,
+                                        size: 32,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text('Camera'),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: SizedBox(
-                            height: 100,
-                            child: ElevatedButton.icon(
-                              icon: const Icon(Icons.photo_library, size: 28),
-                              label: const Text('Gallery'),
-                              onPressed: () =>
-                                  _processImage(ImageSource.gallery),
+                          child: Card(
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.outline,
+                              ),
+                            ),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(20),
+                              onTap: () => _processImage(ImageSource.gallery),
+                              child: const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Column(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 34,
+                                      backgroundColor: Color(0xFF38C6A0),
+                                      child: Icon(
+                                        Icons.photo_library,
+                                        size: 32,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text('Gallery'),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
                         ),
