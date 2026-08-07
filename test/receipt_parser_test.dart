@@ -170,6 +170,86 @@ void main() {
       expect(data.items[1].total, 15500);
       expect(data.amount, 265500);
     });
+
+    test('greedy name match captures multi-word item names', () {
+      final data = ReceiptParser.parseLines([
+        'Toko ABC',
+        'Susu Ultra Milk 15000',
+        'Air Mineral 5000',
+        'TOTAL  20000',
+      ]);
+
+      expect(data.items.length, 2);
+      expect(data.items[0].name, 'Susu Ultra Milk');
+      expect(data.items[0].total, 15000);
+      expect(data.items[1].name, 'Air Mineral');
+      expect(data.items[1].total, 5000);
+    });
+
+    test('filters date lines from items', () {
+      final data = ReceiptParser.parseLines([
+        'Toko XYZ',
+        'Item Satu  10000',
+        '25/12/2026',
+        'Item Dua  20000',
+        'TOTAL  30000',
+      ]);
+
+      expect(data.items.length, 2);
+      expect(data.items[0].name, 'Item Satu');
+      expect(data.items[1].name, 'Item Dua');
+    });
+
+    test('strips leading SKU codes from item lines', () {
+      final data = ReceiptParser.parseLines([
+        'Toko',
+        '899701234567  Nama Barang  15000',
+        'TOTAL  15000',
+      ]);
+
+      expect(data.items.length, 1);
+      expect(data.items[0].name, 'Nama Barang');
+      expect(data.items[0].total, 15000);
+    });
+
+    test('filters payment method lines from items', () {
+      final data = ReceiptParser.parseLines([
+        'Toko ABC',
+        'Item A  10000',
+        'QRIS  10000',
+        'TOTAL  10000',
+      ]);
+
+      expect(data.items.length, 1);
+      expect(data.items[0].name, 'Item A');
+    });
+
+    test('parses comma as thousands separator for item amounts', () {
+      final data = ReceiptParser.parseLines([
+        'Toko Maju',
+        'Beras 12,500',
+        'Gula 15,000',
+        'TOTAL  27,500',
+      ]);
+
+      expect(data.items.length, 2);
+      expect(data.items[0].total, 12500);
+      expect(data.items[1].total, 15000);
+      expect(data.amount, 27500);
+    });
+
+    test('parses negative discount amounts', () {
+      final data = ReceiptParser.parseLines([
+        'Toko',
+        'Item A  50000',
+        'Disc 10%  -5000',
+        'TOTAL  45000',
+      ]);
+
+      expect(data.items.length, 1);
+      expect(data.items[0].name, 'Item A');
+      expect(data.items[0].total, 50000);
+    });
   });
 
   group('ReceiptParser.parseGeminiJson', () {

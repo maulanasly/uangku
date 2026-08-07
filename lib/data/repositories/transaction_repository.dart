@@ -85,4 +85,11 @@ class TransactionRepository {
   Future<void> deleteTransaction(String id) {
     return (_db.delete(_db.transactions)..where((t) => t.id.equals(id))).go();
   }
+
+  Future<void> resetData() {
+    return _db.transaction(() async {
+      await _db.delete(_db.transactionItems).go();
+      await _db.delete(_db.transactions).go();
+    });
+  }
 }

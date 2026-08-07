@@ -4,10 +4,19 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/services/export_service.dart';
 import '../../core/services/preferences_service.dart';
+import '../../providers/database_provider.dart';
 import '../../providers/transaction_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
+
+  static const _currencyOptions = [
+    ('\$', 'Dollar'),
+    ('Rp', 'Rupiah'),
+    ('€', 'Euro'),
+    ('£', 'Pound'),
+    ('¥', 'Yen'),
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,6 +76,13 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.currency_exchange),
             onTap: () => _selectCurrency(context, ref),
           ),
+          const Divider(),
+          ListTile(
+            title: const Text('Reset Data'),
+            subtitle: const Text('Delete all transactions and items'),
+            leading: const Icon(Icons.delete_sweep, color: Colors.red),
+            onTap: () => _resetData(context, ref),
+          ),
         ],
       ),
     );
@@ -74,28 +90,82 @@ class SettingsScreen extends ConsumerWidget {
 
   Future<void> _selectCurrency(BuildContext context, WidgetRef ref) async {
     final current = ref.read(currencySymbolProvider).valueOrNull ?? '\$';
-    final selected = await showDialog<String>(
+
+    final selected = await showModalBottomSheet<String>(
       context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
-        return SimpleDialog(
-          title: const Text('Currency Symbol'),
-          children: [
-            for (final symbol in PreferencesService.supportedSymbols)
-              SimpleDialogOption(
-                onPressed: () => Navigator.pop(context, symbol),
-                child: Row(
-                  children: [
-                    Icon(
-                      symbol == current
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_off,
-                    ),
-                    const SizedBox(width: 12),
-                    Text(symbol),
-                  ],
-                ),
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Currency Symbol',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-          ],
+              const SizedBox(height: 16),
+              for (final entry in _currencyOptions)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: entry.$1 == current
+                        ? Theme.of(context).colorScheme.primaryContainer
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () => Navigator.pop(context, entry.$1),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48,
+                              height: 48,
+                              decoration: BoxDecoration(
+                                color: entry.$1 == current
+                                    ? Theme.of(context).colorScheme.primary
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(14),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                entry.$1,
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: entry.$1 == current
+                                      ? Colors.white
+                                      : Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Text(
+                              entry.$2,
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                            const Spacer(),
+                            if (entry.$1 == current)
+                              Icon(
+                                Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -103,6 +173,48 @@ class SettingsScreen extends ConsumerWidget {
     if (selected != null && selected != current) {
       await PreferencesService().setCurrencySymbol(selected);
       ref.invalidate(currencySymbolProvider);
+    }
+  }
+
+  Future<void> _resetData(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset Data'),
+        content: const Text(
+          'Delete all transactions and items? Categories and preferences will be kept. This cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      final repo = ref.read(transactionRepositoryProvider);
+      await repo.resetData();
+      ref.invalidate(transactionsProvider);
+      ref.invalidate(filteredTransactionsProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All data has been reset')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error resetting data: $e')),
+        );
+      }
     }
   }
 }

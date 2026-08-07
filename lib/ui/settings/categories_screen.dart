@@ -8,6 +8,21 @@ import '../../data/database/database.dart';
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
+  static const _iconOptions = [
+    ('restaurant', Icons.restaurant),
+    ('payments', Icons.payments),
+    ('shopping_cart', Icons.shopping_cart),
+    ('directions_car', Icons.directions_car),
+    ('home', Icons.home),
+    ('movie', Icons.movie),
+    ('fitness_center', Icons.fitness_center),
+    ('flight', Icons.flight),
+    ('school', Icons.school),
+    ('medical_services', Icons.medical_services),
+    ('pets', Icons.pets),
+    ('shopping_bag', Icons.shopping_bag),
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(categoriesProvider);
@@ -47,22 +62,37 @@ class CategoriesScreen extends ConsumerWidget {
   }
 
   IconData _iconFor(String name) {
-    const icons = {
-      'restaurant': Icons.restaurant,
-      'directions_car': Icons.directions_car,
-      'payments': Icons.payments,
-      'shopping_cart': Icons.shopping_cart,
-      'fitness_center': Icons.fitness_center,
-      'movie': Icons.movie,
-      'home': Icons.home,
-    };
-    return icons[name] ?? Icons.category;
+    for (final entry in _iconOptions) {
+      if (entry.$1 == name) return entry.$2;
+    }
+    return Icons.category;
   }
 
-  Future<void> _deleteCategory(BuildContext context, WidgetRef ref, CategoryEntity category) async {
+  Future<void> _deleteCategory(
+      BuildContext context, WidgetRef ref, CategoryEntity category) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Category'),
+        content: Text('Delete "${category.name}"? Transactions using it will also be deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     final repo = ref.read(transactionRepositoryProvider);
     try {
       await repo.deleteCategory(category.id);
+      ref.invalidate(categoriesProvider);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,48 +108,63 @@ class CategoriesScreen extends ConsumerWidget {
     CategoryEntity? category,
   ]) async {
     final nameController = TextEditingController(text: category?.name ?? '');
-    final iconController = TextEditingController(text: category?.icon ?? '');
+    var selectedIcon = category?.icon ?? _iconOptions.first.$1;
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(category == null ? 'Add Category' : 'Edit Category'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Name',
-                  border: OutlineInputBorder(),
-                ),
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(category == null ? 'Add Category' : 'Edit Category'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('Icon', style: TextStyle(fontSize: 13)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final entry in _iconOptions)
+                        ChoiceChip(
+                          label: Icon(entry.$2, size: 20),
+                          selected: selectedIcon == entry.$1,
+                          onSelected: (_) {
+                            setDialogState(() => selectedIcon = entry.$1);
+                          },
+                          showCheckmark: false,
+                          selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                        ),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: iconController,
-                decoration: const InputDecoration(
-                  labelText: 'Icon',
-                  hintText: 'e.g. restaurant',
-                  border: OutlineInputBorder(),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
                 ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (nameController.text.trim().isNotEmpty) {
-                  Navigator.pop(context, true);
-                }
-              },
-              child: const Text('Save'),
-            ),
-          ],
+                FilledButton(
+                  onPressed: () {
+                    if (nameController.text.trim().isNotEmpty) {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -127,7 +172,7 @@ class CategoriesScreen extends ConsumerWidget {
     if (saved == true) {
       final repo = ref.read(transactionRepositoryProvider);
       final name = nameController.text.trim();
-      final icon = iconController.text.trim().isEmpty ? 'category' : iconController.text.trim();
+      final icon = selectedIcon;
 
       if (category == null) {
         await repo.addCategory(
@@ -142,6 +187,7 @@ class CategoriesScreen extends ConsumerWidget {
           category.copyWith(name: name, icon: icon),
         );
       }
+      ref.invalidate(categoriesProvider);
     }
   }
 }
