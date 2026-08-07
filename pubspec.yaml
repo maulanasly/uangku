@@ -1,0 +1,54 @@
+name: uangku
+description: "A personal Money Tracker application."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+  
+  # Navigation
+  go_router: ^13.0.0
+  
+  # Database
+  drift: ^2.14.0
+  sqlite3: ^2.4.2
+  sqlite3_flutter_libs: ^0.5.18
+  path_provider: ^2.1.1
+  path: ^1.8.3
+  
+  # Features
+  image_picker: ^1.0.4
+  fl_chart: ^0.65.0
+  
+  # Utils
+  intl: ^0.18.1
+  share_plus: ^13.2.0
+  csv: ^8.0.0
+  google_generative_ai: ^0.4.7
+  flutter_dotenv: ^6.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Code Generation
+  build_runner: ^2.4.7
+  riverpod_generator: ^2.3.9
+  drift_dev: ^2.14.0
+  
+  # Lints
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
