@@ -20,6 +20,10 @@ class DashboardScreen extends ConsumerWidget {
         title: const Text('Money Tracker'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.receipt_long),
+            onPressed: () => context.push('/transactions'),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
           ),
