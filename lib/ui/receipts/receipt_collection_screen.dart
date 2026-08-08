@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_type.dart';
+import '../../core/utils/money_format.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 
@@ -32,8 +33,7 @@ class _ReceiptCollectionScreenState
     final receiptsAsync = ref.watch(receiptTransactionsProvider);
     final currencySymbol =
         ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
-    final currencyFormat =
-        NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
+    final currencyFormat = moneyFormat(currencySymbol);
 
     return Scaffold(
       appBar: AppBar(

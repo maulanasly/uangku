@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../core/ui/receipt_image_dialog.dart';
+import '../../core/utils/money_format.dart';
 import '../../core/utils/summary_calculator.dart';
 import '../../data/database/database.dart';
 
@@ -54,7 +55,7 @@ class DashboardScreen extends ConsumerWidget {
             ).name;
           }
 
-          final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
+          final currencyFormat = moneyFormat(currencySymbol);
           final isCurrentMonth = SummaryCalculator.isSameMonth(selectedMonth, DateTime.now());
 
           return RefreshIndicator(

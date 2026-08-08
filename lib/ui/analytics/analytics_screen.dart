@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/utils/analytics_calculator.dart';
+import '../../core/utils/money_format.dart';
 import '../../providers/transaction_provider.dart';
 import '../../data/database/database.dart';
 
@@ -46,7 +47,7 @@ class AnalyticsScreen extends ConsumerWidget {
           }
 
           final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
-          final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 0);
+          final currencyFormat = moneyFormat(currencySymbol);
 
           return RefreshIndicator(
             onRefresh: () async {
