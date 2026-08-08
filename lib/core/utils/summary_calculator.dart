@@ -84,4 +84,17 @@ class SummaryCalculator {
   ) {
     return transactions.where((t) => isSameMonth(t.date, month)).toList();
   }
+
+  static int daysInMonth(DateTime month) {
+    return DateTime(month.year, month.month + 1, 0).day;
+  }
+
+  static int daysLeftInMonth(DateTime date) {
+    final daysLeft = daysInMonth(date) - date.day + 1;
+    return daysLeft < 1 ? 1 : daysLeft;
+  }
+
+  static double dailyAllowance(double remaining, DateTime today) {
+    return remaining / daysLeftInMonth(today);
+  }
 }

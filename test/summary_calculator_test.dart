@@ -153,5 +153,24 @@ void main() {
 
       expect(filtered.map((t) => t.id), ['1', '3']);
     });
+
+    test('daysInMonth handles month lengths and leap years', () {
+      expect(SummaryCalculator.daysInMonth(DateTime(2026, 7)), 31);
+      expect(SummaryCalculator.daysInMonth(DateTime(2026, 2)), 28);
+      expect(SummaryCalculator.daysInMonth(DateTime(2028, 2)), 29);
+      expect(SummaryCalculator.daysInMonth(DateTime(2026, 12)), 31);
+    });
+
+    test('daysLeftInMonth includes today and never goes below one', () {
+      expect(SummaryCalculator.daysLeftInMonth(DateTime(2026, 7, 1)), 31);
+      expect(SummaryCalculator.daysLeftInMonth(DateTime(2026, 7, 31)), 1);
+      expect(SummaryCalculator.daysLeftInMonth(DateTime(2026, 7, 15)), 17);
+    });
+
+    test('dailyAllowance divides remaining by days left', () {
+      expect(SummaryCalculator.dailyAllowance(320, DateTime(2026, 7, 16)), 20);
+      expect(SummaryCalculator.dailyAllowance(0, DateTime(2026, 7, 16)), 0);
+      expect(SummaryCalculator.dailyAllowance(-50, DateTime(2026, 7, 16)), -50 / 16);
+    });
   });
 }

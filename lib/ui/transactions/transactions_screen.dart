@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_query.dart';
+import '../../core/ui/add_expense_sheet.dart';
+import '../../core/ui/empty_state.dart';
 import '../../core/ui/receipt_image_dialog.dart';
 import '../../core/utils/money_format.dart';
 import '../../data/database/database.dart';
@@ -44,6 +46,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Transactions')),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showAddExpenseSheet(context),
+        child: const Icon(Icons.add),
+      ),
       body: Column(
         children: [
           Padding(
@@ -158,10 +164,26 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               child: transactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) {
+                  final hasFilters = query.search.isNotEmpty ||
+                      query.type != null ||
+                      query.category != null;
                   return ListView(
-                    children: const [
-                      SizedBox(height: 200),
-                      Center(child: Text('No transactions found')),
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    children: [
+                      const SizedBox(height: 120),
+                      EmptyState(
+                        icon: hasFilters ? Icons.search_off : Icons.receipt_long,
+                        title: hasFilters
+                            ? 'No transactions found'
+                            : 'No transactions yet',
+                        subtitle: hasFilters
+                            ? 'Try a different search or clear your filters.'
+                            : 'Add your first expense or scan a receipt to get started.',
+                        actionLabel: hasFilters ? 'Clear filters' : 'Add Expense',
+                        onAction: hasFilters
+                            ? () => _update((q) => const TransactionQuery())
+                            : () => showAddExpenseSheet(context),
+                      ),
                     ],
                   );
                 }

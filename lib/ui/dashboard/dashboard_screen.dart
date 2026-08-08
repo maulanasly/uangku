@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
+import '../../core/ui/add_expense_sheet.dart';
+import '../../core/ui/empty_state.dart';
 import '../../core/ui/receipt_image_dialog.dart';
 import '../../core/utils/money_format.dart';
 import '../../core/utils/summary_calculator.dart';
@@ -34,7 +36,13 @@ class DashboardScreen extends ConsumerWidget {
       body: transactionsAsync.when(
         data: (transactions) {
           if (transactions.isEmpty) {
-            return const Center(child: Text('No transactions yet. Scan a receipt!'));
+            return EmptyState(
+              icon: Icons.receipt_long,
+              title: 'No transactions yet',
+              subtitle: 'Add your first expense or scan a receipt to get started.',
+              actionLabel: 'Add Expense',
+              onAction: () => showAddExpenseSheet(context),
+            );
           }
 
           final budgets = budgetsAsync.valueOrNull ?? [];
@@ -159,6 +167,13 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+              ),
+              SliverToBoxAdapter(
+                child: _BudgetPacingCard(
+                  summary: budgetSummary,
+                  isCurrentMonth: isCurrentMonth,
+                  currencyFormat: currencyFormat,
+                ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
@@ -298,35 +313,7 @@ class DashboardScreen extends ConsumerWidget {
         error: (e, st) => Center(child: Text('Error: $e')),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showModalBottomSheet(
-            context: context,
-            builder: (context) {
-              return SafeArea(
-                child: Wrap(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.edit),
-                      title: const Text('Add Manually'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/add_transaction');
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.camera_alt),
-                      title: const Text('Scan Receipt'),
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/scanner');
-                      },
-                    ),
-                  ],
-                ),
-              );
-            },
-          );
-        },
+        onPressed: () => showAddExpenseSheet(context),
         child: const Icon(Icons.add),
       ),
     );
@@ -438,6 +425,83 @@ class _BudgetProgressBar extends StatelessWidget {
         minHeight: 12,
         backgroundColor: color.withValues(alpha: 0.15),
         valueColor: AlwaysStoppedAnimation<Color>(color),
+      ),
+    );
+  }
+}
+
+class _BudgetPacingCard extends StatelessWidget {
+  final BudgetSummary summary;
+  final bool isCurrentMonth;
+  final NumberFormat currencyFormat;
+
+  const _BudgetPacingCard({
+    required this.summary,
+    required this.isCurrentMonth,
+    required this.currencyFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isCurrentMonth || summary.totalBudget <= 0) {
+      return const SizedBox.shrink();
+    }
+
+    final now = DateTime.now();
+    final day = now.day;
+    final daysInMonth = SummaryCalculator.daysInMonth(now);
+    final remaining = summary.remaining;
+    final allowance = SummaryCalculator.dailyAllowance(remaining, now);
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.push('/budgets'),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Daily budget',
+                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                  ),
+                  Text(
+                    'Day $day of $daysInMonth',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: day / daysInMonth,
+                  minHeight: 6,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                remaining >= 0
+                    ? '${currencyFormat.format(allowance)} / day left'
+                    : 'Over budget by ${currencyFormat.format(-remaining)}',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: remaining >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

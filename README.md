@@ -4,9 +4,9 @@ A personal money tracker built with Flutter. Track expenses against per-category
 
 ## Features
 
-- **Dashboard** — monthly spending with a budget progress bar, per-category budget bars (turns red when over limit), and month navigation
+- **Dashboard** — monthly spending with a budget progress bar, a daily pacing card (day-of-month progress + per-day allowance) for the current month, per-category budget bars (turns red when over limit), and month navigation
 - **Budgets** — set a monthly spending limit per category in Settings; see how much is spent vs. budgeted
-- **Transactions** — search, filter, and sort your transaction history
+- **Transactions** — search, filter, and sort your transaction history, with a quick-add button matching the dashboard
 - **Add Transaction** — item-based manual expense entry (category first, then one or more line items with optional weight, quantity, unit price, and total) or receipt scanning
 - **Receipt Scanner** — on-device OCR that extracts individual line items (name, quantity, price) alongside merchant, total, and date. Scanned data is editable in a review dialog before saving.
 - **Analytics** — monthly spending trends, category spending
