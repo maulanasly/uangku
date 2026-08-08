@@ -89,6 +89,29 @@ class AnalyticsScreen extends ConsumerWidget {
                                 ),
                               ),
                             ),
+                            lineTouchData: LineTouchData(
+                              enabled: true,
+                              touchTooltipData: LineTouchTooltipData(
+                                getTooltipItems: (touchedSpots) {
+                                  return touchedSpots.map((spot) {
+                                    final trendIndex = spot.spotIndex;
+                                    final month = trendIndex < data.trends.length
+                                        ? DateFormat.yMMMd().format(data.trends[trendIndex].month)
+                                        : '';
+                                    final value = currencyFormat.format(spot.y);
+                                    final label = spot.barIndex == 0 ? 'Income' : 'Expense';
+                                    return LineTooltipItem(
+                                      '$month\n$label: $value',
+                                      TextStyle(
+                                        color: spot.barIndex == 0 ? Colors.green : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    );
+                                  }).toList();
+                                },
+                              ),
+                            ),
                             borderData: FlBorderData(show: false),
                             lineBarsData: [
                               LineChartBarData(
