@@ -44,7 +44,6 @@ class SettingsScreen extends ConsumerWidget {
           ListTile(
             title: const Text('Theme'),
             leading: const Icon(Icons.palette),
-            onTap: () {},
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),

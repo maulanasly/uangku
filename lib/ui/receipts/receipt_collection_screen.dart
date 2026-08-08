@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_type.dart';
+import '../../core/ui/empty_state.dart';
 import '../../core/utils/money_format.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
@@ -57,23 +58,10 @@ class _ReceiptCollectionScreenState
       body: receiptsAsync.when(
         data: (receipts) {
           if (receipts.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.collections_bookmark,
-                        size: 64, color: Colors.grey),
-                    SizedBox(height: 16),
-                    Text(
-                      'No receipt images yet.\nScan a receipt to start your collection.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey, fontSize: 15),
-                    ),
-                  ],
-                ),
-              ),
+            return const EmptyState(
+              icon: Icons.collections_bookmark,
+              title: 'No receipt images yet',
+              subtitle: 'Scan a receipt to start your collection.',
             );
           }
           if (_showGrid) {

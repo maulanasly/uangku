@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/ui/add_expense_sheet.dart';
+import '../../core/ui/empty_state.dart';
 import '../../core/utils/analytics_calculator.dart';
 import '../../core/utils/money_format.dart';
 import '../../providers/transaction_provider.dart';
@@ -27,9 +29,16 @@ class AnalyticsScreen extends ConsumerWidget {
                 ref.invalidate(categoriesProvider);
               },
               child: ListView(
-                children: const [
-                  SizedBox(height: 200),
-                  Center(child: Text('No transactions yet')),
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 120),
+                  EmptyState(
+                    icon: Icons.insights,
+                    title: 'No data to analyze',
+                    subtitle: 'Add expenses to unlock spending insights and trends.',
+                    actionLabel: 'Add Expense',
+                    onAction: () => showAddExpenseSheet(context),
+                  ),
                 ],
               ),
             );
