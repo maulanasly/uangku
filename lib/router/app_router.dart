@@ -9,6 +9,7 @@ import '../ui/settings/categories_screen.dart';
 import '../ui/analytics/analytics_screen.dart';
 import '../ui/transactions/add_transaction_screen.dart';
 import '../ui/transactions/transactions_screen.dart';
+import '../ui/receipts/receipt_collection_screen.dart';
 import '../data/database/database.dart';
 
 final appRouter = GoRouter(
@@ -44,6 +45,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/categories',
       builder: (context, state) => const CategoriesScreen(),
+    ),
+    GoRoute(
+      path: '/receipts',
+      builder: (context, state) => const ReceiptCollectionScreen(),
     ),
   ],
 );

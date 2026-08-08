@@ -39,6 +39,7 @@ class ReceiptDraft {
   final String category;
   final TransactionType type;
   final String note;
+  final String? receiptImagePath;
   final List<ReceiptItemDraft> items;
 
   ReceiptDraft({
@@ -48,6 +49,7 @@ class ReceiptDraft {
     required this.category,
     required this.type,
     required this.note,
+    this.receiptImagePath,
     this.items = const [],
   });
 
@@ -78,6 +80,7 @@ class ReceiptDraft {
     String? category,
     TransactionType? type,
     String? note,
+    String? receiptImagePath,
     List<ReceiptItemDraft>? items,
   }) {
     return ReceiptDraft(
@@ -87,6 +90,7 @@ class ReceiptDraft {
       category: category ?? this.category,
       type: type ?? this.type,
       note: note ?? this.note,
+      receiptImagePath: receiptImagePath ?? this.receiptImagePath,
       items: items ?? this.items,
     );
   }
@@ -100,6 +104,7 @@ class ReceiptDraft {
       merchant: merchant.isEmpty ? 'Unknown' : merchant,
       note: note,
       type: type,
+      receiptImagePath: Value(receiptImagePath),
     );
   }
 

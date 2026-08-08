@@ -28,6 +28,10 @@ class DashboardScreen extends ConsumerWidget {
             onPressed: () => context.push('/transactions'),
           ),
           IconButton(
+            icon: const Icon(Icons.collections_bookmark),
+            onPressed: () => context.push('/receipts'),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () => context.push('/settings'),
           ),

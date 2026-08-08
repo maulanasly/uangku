@@ -13,6 +13,7 @@ import '../../core/services/ocr_cloud_service.dart';
 import '../../core/services/ocr_service.dart';
 import '../../core/services/preferences_service.dart';
 import '../../core/utils/receipt_parser.dart';
+import '../../core/utils/receipt_storage.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/transaction_provider.dart';
 import 'receipt_draft.dart';
@@ -63,9 +64,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     try {
       final prepared = await _prepareImage(image);
+
+      // Save a permanent copy of the receipt image.
+      final imagePath = await saveReceiptImage(prepared.bytes);
+
       final parsed = await _parseImage(prepared.path, prepared.bytes);
       if (mounted) {
-        await _showReviewDialog(parsed);
+        await _showReviewDialog(parsed, imagePath: imagePath);
       }
     } catch (e) {
       if (mounted) {
@@ -117,23 +122,31 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   }
 
   Future<void> _showReviewDialog(
-    ({ReceiptData data, String? cloudProvider}) parsed,
-  ) async {
-    final result = await showReviewTransactionDialog(
-      context,
-      draft: ReceiptDraft.fromReceiptData(parsed.data),
-      cloudProvider: parsed.cloudProvider,
-    );
-
-    if (result == null) {
-      return;
+    ({ReceiptData data, String? cloudProvider}) parsed, {
+    String? imagePath,
+  }) async {
+    final draft = ReceiptDraft.fromReceiptData(parsed.data);
+    if (imagePath != null) {
+      final draftWithImage = draft.copyWith(receiptImagePath: imagePath);
+      final result = await showReviewTransactionDialog(
+        context,
+        draft: draftWithImage,
+        cloudProvider: parsed.cloudProvider,
+      );
+      if (result == null) return;
+      final repo = ref.read(transactionRepositoryProvider);
+      await repo.addTransactionWithItems(result.transaction, result.items);
+    } else {
+      final result = await showReviewTransactionDialog(
+        context,
+        draft: draft,
+        cloudProvider: parsed.cloudProvider,
+      );
+      if (result == null) return;
+      final repo = ref.read(transactionRepositoryProvider);
+      await repo.addTransactionWithItems(result.transaction, result.items);
     }
-
-    final repo = ref.read(transactionRepositoryProvider);
-    await repo.addTransactionWithItems(result.transaction, result.items);
-    if (!mounted) {
-      return;
-    }
+    if (!mounted) return;
     context.pop();
   }
 

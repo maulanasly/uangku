@@ -43,6 +43,13 @@ final selectedMonthProvider = StateProvider<DateTime>((ref) {
 final transactionQueryProvider =
     StateProvider<TransactionQuery>((ref) => const TransactionQuery());
 
+/// Transactions that have a saved receipt image.
+final receiptTransactionsProvider =
+    FutureProvider<List<TransactionEntity>>((ref) async {
+  final transactions = await ref.watch(transactionsProvider.future);
+  return transactions.where((t) => t.receiptImagePath != null).toList();
+});
+
 final transactionItemsFamily =
     FutureProvider.family<List<TransactionItemEntity>, String>(
   (ref, id) async {
