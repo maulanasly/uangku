@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 import '../database/database.dart';
 import '../../core/models/transaction_query.dart';
 
@@ -91,5 +92,37 @@ class TransactionRepository {
       await _db.delete(_db.transactionItems).go();
       await _db.delete(_db.transactions).go();
     });
+  }
+
+  // Budgets
+  Stream<List<BudgetEntity>> watchAllBudgets() => _db.select(_db.budgets).watch();
+
+  Future<double?> getBudgetForCategory(String categoryId) async {
+    final budget = await (_db.select(_db.budgets)
+          ..where((b) => b.categoryId.equals(categoryId)))
+        .getSingleOrNull();
+    return budget?.monthlyLimit;
+  }
+
+  Future<void> setBudget(String categoryId, double monthlyLimit) async {
+    final existing = await (_db.select(_db.budgets)
+          ..where((b) => b.categoryId.equals(categoryId)))
+        .getSingleOrNull();
+    if (existing == null) {
+      await _db.into(_db.budgets).insert(
+            BudgetsCompanion.insert(
+              id: const Uuid().v4(),
+              categoryId: categoryId,
+              monthlyLimit: monthlyLimit,
+            ),
+          );
+    } else {
+      await (_db.update(_db.budgets)..where((b) => b.categoryId.equals(categoryId)))
+          .write(BudgetsCompanion(monthlyLimit: Value(monthlyLimit)));
+    }
+  }
+
+  Future<void> deleteBudget(String categoryId) {
+    return (_db.delete(_db.budgets)..where((b) => b.categoryId.equals(categoryId))).go();
   }
 }

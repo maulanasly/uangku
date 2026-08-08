@@ -9,7 +9,6 @@ import '../../core/ui/receipt_image_dialog.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../data/database/database.dart';
-
 class AddTransactionScreen extends ConsumerStatefulWidget {
   final TransactionEntity? transaction;
 
@@ -25,7 +24,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   late final TextEditingController _merchantController;
   late final TextEditingController _noteController;
   
-  late TransactionType _selectedType;
   late DateTime _selectedDate;
   late String _selectedCategory;
 
@@ -36,7 +34,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
     _amountController = TextEditingController(text: t?.amount.toString() ?? '');
     _merchantController = TextEditingController(text: t?.merchant ?? '');
     _noteController = TextEditingController(text: t?.note ?? '');
-    _selectedType = t?.type ?? TransactionType.expense;
     _selectedDate = t?.date ?? DateTime.now();
     _selectedCategory = t?.category ?? 'cat_food';
   }
@@ -85,7 +82,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           category: _selectedCategory,
           merchant: _merchantController.text,
           note: _noteController.text,
-          type: _selectedType,
+          type: TransactionType.expense,
         );
         repo.updateTransaction(transaction);
       } else {
@@ -97,7 +94,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           category: _selectedCategory,
           merchant: _merchantController.text,
           note: _noteController.text,
-          type: _selectedType,
+          type: TransactionType.expense,
         );
         repo.addTransaction(transaction);
       }
@@ -120,29 +117,6 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Type Selection
-              SegmentedButton<TransactionType>(
-                segments: const [
-                  ButtonSegment(
-                    value: TransactionType.expense,
-                    label: Text('Expense'),
-                    icon: Icon(Icons.arrow_downward),
-                  ),
-                  ButtonSegment(
-                    value: TransactionType.income,
-                    label: Text('Income'),
-                    icon: Icon(Icons.arrow_upward),
-                  ),
-                ],
-                selected: {_selectedType},
-                onSelectionChanged: (Set<TransactionType> newSelection) {
-                  setState(() {
-                    _selectedType = newSelection.first;
-                  });
-                },
-              ),
-              const SizedBox(height: 24),
-
               // Amount
               TextFormField(
                 controller: _amountController,

@@ -6,12 +6,12 @@ import 'connection/connection.dart' as impl;
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Categories, Transactions, TransactionItems])
+@DriftDatabase(tables: [Categories, Transactions, TransactionItems, Budgets])
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? impl.openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -43,6 +43,11 @@ class AppDatabase extends _$AppDatabase {
       onUpgrade: (Migrator m, int from, int to) async {
         if (from < 2) {
           await m.createTable(transactionItems);
+        }
+        if (from < 3) {
+          await m.createTable(budgets);
+          // Remove legacy income transactions; app is expense-only with budgets now.
+          await (delete(transactions)..where((t) => t.type.equalsValue(TransactionType.income))).go();
         }
       },
     );

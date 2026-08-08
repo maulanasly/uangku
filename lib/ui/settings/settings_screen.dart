@@ -31,6 +31,12 @@ class SettingsScreen extends ConsumerWidget {
             onTap: () => context.push('/categories'),
           ),
           ListTile(
+            title: const Text('Budgets'),
+            subtitle: const Text('Monthly spending limits per category'),
+            leading: const Icon(Icons.savings),
+            onTap: () => context.push('/budgets'),
+          ),
+          ListTile(
             title: const Text('Currency'),
             leading: const Icon(Icons.currency_exchange),
             onTap: () => _selectCurrency(context, ref),
