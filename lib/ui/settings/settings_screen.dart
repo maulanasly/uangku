@@ -24,11 +24,48 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
+          _SectionHeader(title: 'PREFERENCES'),
           ListTile(
             title: const Text('Categories'),
             leading: const Icon(Icons.category),
             onTap: () => context.push('/categories'),
           ),
+          ListTile(
+            title: const Text('Currency'),
+            leading: const Icon(Icons.currency_exchange),
+            onTap: () => _selectCurrency(context, ref),
+          ),
+          ListTile(
+            title: const Text('Theme'),
+            leading: const Icon(Icons.palette),
+            onTap: () {},
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ref.watch(themeModeProvider).when(
+              data: (mode) => SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
+                  ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
+                ],
+                selected: {mode},
+                onSelectionChanged: (selection) async {
+                  final selected = selection.first;
+                  final label = switch (selected) {
+                    ThemeMode.dark => 'dark',
+                    ThemeMode.light => 'light',
+                    _ => 'system',
+                  };
+                  await PreferencesService().setThemeModePref(label);
+                  ref.invalidate(themeModeProvider);
+                },
+              ),
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ),
+          _SectionHeader(title: 'DATA'),
           ListTile(
             title: const Text('Export Data'),
             leading: const Icon(Icons.file_download),
@@ -65,41 +102,6 @@ class SettingsScreen extends ConsumerWidget {
                 }
               }
             },
-          ),
-          ListTile(
-            title: const Text('Currency'),
-            leading: const Icon(Icons.currency_exchange),
-            onTap: () => _selectCurrency(context, ref),
-          ),
-          ListTile(
-            title: const Text('Theme'),
-            leading: const Icon(Icons.palette),
-            onTap: () {},
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: ref.watch(themeModeProvider).when(
-              data: (mode) => SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
-                  ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
-                ],
-                selected: {mode},
-                onSelectionChanged: (selection) async {
-                  final selected = selection.first;
-                  final label = switch (selected) {
-                    ThemeMode.dark => 'dark',
-                    ThemeMode.light => 'light',
-                    _ => 'system',
-                  };
-                  await PreferencesService().setThemeModePref(label);
-                  ref.invalidate(themeModeProvider);
-                },
-              ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
           ),
           const Divider(),
           ListTile(
@@ -241,5 +243,27 @@ class SettingsScreen extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.primary,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
   }
 }
