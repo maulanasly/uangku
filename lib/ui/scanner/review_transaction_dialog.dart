@@ -401,6 +401,7 @@ class _ReviewTransactionBottomSheetState
             Expanded(
               flex: 3,
               child: TextFormField(
+                key: Key(item.id),
                 initialValue: item.name,
                 decoration: const InputDecoration(
                   hintText: 'Item name',
@@ -418,6 +419,7 @@ class _ReviewTransactionBottomSheetState
             SizedBox(
               width: 56,
               child: TextFormField(
+                key: Key('${item.id}_qty'),
                 initialValue: item.quantity == item.quantity.truncateToDouble()
                     ? item.quantity.toStringAsFixed(0)
                     : item.quantity.toString(),
@@ -430,7 +432,7 @@ class _ReviewTransactionBottomSheetState
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   final qty = double.tryParse(v) ?? 1;
-                  final unitPrice = item.unitPrice ?? item.total;
+                  final unitPrice = item.unitPrice ?? (item.quantity > 0 ? item.total / item.quantity : item.total);
                   _updateItem(
                     i,
                     ReceiptItemDraft(
@@ -447,6 +449,7 @@ class _ReviewTransactionBottomSheetState
             SizedBox(
               width: 80,
               child: TextFormField(
+                key: Key('${item.id}_total'),
                 initialValue: item.total == item.total.truncateToDouble()
                     ? item.total.toStringAsFixed(0)
                     : item.total.toStringAsFixed(2),
