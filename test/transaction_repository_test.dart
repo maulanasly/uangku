@@ -182,6 +182,64 @@ void main() {
       final items = await repo.watchItemsFor('5').first;
       expect(items, isEmpty);
     });
+
+    test('updateTransactionWithItems replaces existing items', () async {
+      await repo.addTransactionWithItems(
+        TransactionsCompanion.insert(
+          id: '5',
+          date: DateTime(2026, 7, 5),
+          amount: 67,
+          category: 'cat_food',
+          merchant: 'Co-op',
+          note: '',
+          type: TransactionType.expense,
+        ),
+        [
+          TransactionItemsCompanion.insert(
+            id: '5-0',
+            transactionId: '5',
+            name: 'Milk',
+            quantity: const Value(2),
+            unitPrice: const Value(4.5),
+            total: 9,
+          ),
+        ],
+      );
+
+      final tx = (await repo.watchAllTransactions().first).firstWhere((t) => t.id == '5');
+      await repo.updateTransactionWithItems(
+        tx.copyWith(amount: 13.5, merchant: 'Co-op Updated'),
+        [
+          TransactionItemsCompanion.insert(
+            id: '5-1',
+            transactionId: '5',
+            name: 'Bread',
+            quantity: const Value(1),
+            weight: const Value(0.5),
+            total: 4.5,
+          ),
+          TransactionItemsCompanion.insert(
+            id: '5-2',
+            transactionId: '5',
+            name: 'Milk',
+            quantity: const Value(2),
+            unitPrice: const Value(4.5),
+            total: 9,
+          ),
+        ],
+      );
+
+      final updatedTx =
+          (await repo.watchAllTransactions().first).firstWhere((t) => t.id == '5');
+      expect(updatedTx.merchant, 'Co-op Updated');
+      expect(updatedTx.amount, 13.5);
+
+      final items = await repo.watchItemsFor('5').first;
+      expect(items.length, 2);
+      expect(items.map((i) => i.id).toSet(), {'5-1', '5-2'});
+      expect(items.firstWhere((i) => i.id == '5-1').weight, 0.5);
+      expect(items.firstWhere((i) => i.id == '5-2').weight, isNull);
+    });
   });
 
   group('TransactionRepository budgets', () {

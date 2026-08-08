@@ -7,12 +7,12 @@ A personal money tracker built with Flutter. Track expenses against per-category
 - **Dashboard** — monthly spending with a budget progress bar, per-category budget bars (turns red when over limit), and month navigation
 - **Budgets** — set a monthly spending limit per category in Settings; see how much is spent vs. budgeted
 - **Transactions** — search, filter, and sort your transaction history
-- **Add Transaction** — manual expense entry or receipt scanning
+- **Add Transaction** — item-based manual expense entry (category first, then one or more line items with optional weight, quantity, unit price, and total) or receipt scanning
 - **Receipt Scanner** — on-device OCR that extracts individual line items (name, quantity, price) alongside merchant, total, and date. Scanned data is editable in a review dialog before saving.
 - **Analytics** — monthly spending trends, category spending
 - **Settings** — manage categories with visual icon picker, set per-category budgets, export/import CSV, choose a currency symbol via visual selector, reset all transaction data
 
-The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v3; a `budgets` table holds per-category monthly limits). Money values are displayed with compact notation — `1.2K`/`1.23M` (English suffixes) for amounts of 1,000 and up (`lib/core/utils/money_format.dart`); editable inputs always use plain numbers.
+The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v4; a `budgets` table holds per-category monthly limits; items may carry an optional `weight`). Money values are displayed with compact notation — `1.2K`/`1.23M` (English suffixes) for amounts of 1,000 and up (`lib/core/utils/money_format.dart`); editable inputs always use plain numbers.
 
 ## Getting Started
 

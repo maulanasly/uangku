@@ -9,16 +9,20 @@ class ReceiptItemDraft {
   String id;
   String name;
   double quantity;
+  double? unitPrice;
+  double? weight;
   double total;
 
   ReceiptItemDraft({
     required this.id,
     required this.name,
     this.quantity = 1,
+    this.unitPrice,
+    this.weight,
     required this.total,
   });
 
-  double? get unitPrice => quantity > 0 ? total / quantity : null;
+  double? get unitPriceFromTotal => quantity > 0 ? total / quantity : null;
 
   TransactionItemsCompanion toCompanion(String transactionId) {
     return TransactionItemsCompanion.insert(
@@ -26,7 +30,8 @@ class ReceiptItemDraft {
       transactionId: transactionId,
       name: name,
       quantity: Value(quantity),
-      unitPrice: Value(unitPrice),
+      unitPrice: Value(unitPrice ?? unitPriceFromTotal),
+      weight: Value(weight),
       total: total,
     );
   }
@@ -67,6 +72,8 @@ class ReceiptDraft {
             id: const Uuid().v4(),
             name: item.name,
             quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            weight: item.weight,
             total: item.total,
           ),
       ],

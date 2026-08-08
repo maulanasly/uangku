@@ -34,6 +34,7 @@ class TransactionItems extends Table {
   TextColumn get name => text()();
   RealColumn get quantity => real().withDefault(const Constant(1))();
   RealColumn get unitPrice => real().nullable()();
+  RealColumn get weight => real().nullable()();
   RealColumn get total => real()();
   IntColumn get position => integer().withDefault(const Constant(0))();
 

@@ -27,7 +27,7 @@ There is no `.env.example`; create `.env` manually before running.
 
 - `lib/main.dart` — entry; loads `.env`, wraps app in `ProviderScope`
 - `lib/router/app_router.dart` — `go_router` config (single source of routes)
-- `lib/data/database/` — Drift DB. `database.dart` declares `AppDatabase` (`part 'database.g.dart'`); `tables.dart` defines `Categories` + `Transactions` schema; `connection/` uses conditional import (`native.dart` vs `web.dart`) for platform-specific SQLite open. `schemaVersion == 1`; `migration` seeds 3 default categories on create only.
+- `lib/data/database/` — Drift DB. `database.dart` declares `AppDatabase` (`part 'database.g.dart'`); `tables.dart` defines `Categories`, `Transactions`, `TransactionItems` + `Budgets` schema; `connection/` uses conditional import (`native.dart` vs `web.dart`) for platform-specific SQLite open. `schemaVersion == 4`; `migration` seeds 3 default categories on create only.
 - `lib/data/repositories/transaction_repository.dart` — only DB access goes through here
 - `lib/providers/` — Riverpod providers wiring repo to UI. Providers are hand-written (`Provider`/`StreamProvider`/`FutureProvider`), **not** `@riverpod`-generated, despite `riverpod_annotation` being a dep.
 - `lib/core/services/gemini_service.dart` — receipt OCR via `google_generative_ai` (model `gemini-1.5-flash`). Has separate `parseReceiptFromBytes` for web; `parseReceiptFromImage` throws on web.

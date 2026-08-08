@@ -48,14 +48,33 @@ void main() {
   });
 
   group('ReceiptItemDraft', () {
-    test('unitPrice is derived from total / quantity', () {
+    test('unitPriceFromTotal is derived from total / quantity', () {
       final item = ReceiptItemDraft(id: 'i1', name: 'Tea', quantity: 3, total: 45);
-      expect(item.unitPrice, 15.0);
+      expect(item.unitPriceFromTotal, 15.0);
     });
 
-    test('unitPrice is null when quantity is 0', () {
+    test('unitPriceFromTotal is null when quantity is 0', () {
       final item = ReceiptItemDraft(id: 'i1', name: 'Tea', quantity: 0, total: 45);
-      expect(item.unitPrice, isNull);
+      expect(item.unitPriceFromTotal, isNull);
+    });
+
+    test('toCompanion stores weight when present', () {
+      final item = ReceiptItemDraft(
+        id: 'i1',
+        name: 'Apples',
+        quantity: 2,
+        unitPrice: 30,
+        weight: 2.5,
+        total: 60,
+      );
+      final companion = item.toCompanion('tx1');
+      expect(companion.weight.value, 2.5);
+      expect(companion.unitPrice.value, 30.0);
+    });
+
+    test('toCompanion stores a null weight when not set', () {
+      final item = ReceiptItemDraft(id: 'i1', name: 'Tea', quantity: 3, total: 45);
+      expect(item.toCompanion('tx1').weight.value, isNull);
     });
   });
 
@@ -84,6 +103,25 @@ void main() {
       final draft = ReceiptDraft.fromReceiptData(data).copyWith(amountText: '55');
       expect(draft.items.length, 1);
       expect(draft.items[0].name, 'Item A');
+    });
+
+    test('maps weight and unitPrice from ReceiptData', () {
+      final data = ReceiptData(
+        merchant: 'Toko',
+        amount: 60,
+        items: [
+          const ReceiptItem(
+            name: 'Apples',
+            quantity: 2,
+            unitPrice: 30,
+            weight: 2.5,
+            total: 60,
+          ),
+        ],
+      );
+      final draft = ReceiptDraft.fromReceiptData(data);
+      expect(draft.items[0].weight, 2.5);
+      expect(draft.items[0].unitPrice, 30.0);
     });
   });
 }

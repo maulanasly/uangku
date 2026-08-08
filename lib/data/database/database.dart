@@ -11,7 +11,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? impl.openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -48,6 +48,9 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(budgets);
           // Remove legacy income transactions; app is expense-only with budgets now.
           await (delete(transactions)..where((t) => t.type.equalsValue(TransactionType.income))).go();
+        }
+        if (from < 4) {
+          await m.addColumn(transactionItems, transactionItems.weight);
         }
       },
     );

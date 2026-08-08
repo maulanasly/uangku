@@ -228,6 +228,18 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     );
   }
 
+  String _qtyLabel(TransactionItemEntity item) {
+    final qty = item.quantity == item.quantity.truncateToDouble()
+        ? '${item.quantity.toInt()}x'
+        : '${item.quantity}x';
+    final weight = item.weight;
+    if (weight == null) return qty;
+    final weightLabel = weight == weight.truncateToDouble()
+        ? '${weight.toInt()}kg'
+        : '${weight}kg';
+    return '$qty · $weightLabel';
+  }
+
   Widget _buildItemDetails(
     List<TransactionItemEntity> items,
     NumberFormat currencyFormat,
@@ -260,11 +272,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ),
                   ),
                   SizedBox(
-                    width: 56,
+                    width: 88,
                     child: Text(
-                      item.quantity == item.quantity.truncateToDouble()
-                          ? '${item.quantity.toInt()}x'
-                          : '${item.quantity}x',
+                      _qtyLabel(item),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
