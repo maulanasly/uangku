@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'database_provider.dart';
 import '../data/database/database.dart';
@@ -20,6 +21,18 @@ final currencySymbolProvider = FutureProvider<String>((ref) {
 
 final ocrModeProvider = FutureProvider<String>((ref) {
   return PreferencesService().getOcrMode();
+});
+
+final themeModeProvider = FutureProvider<ThemeMode>((ref) async {
+  final pref = await PreferencesService().getThemeModePref();
+  switch (pref) {
+    case 'dark':
+      return ThemeMode.dark;
+    case 'light':
+      return ThemeMode.light;
+    default:
+      return ThemeMode.system;
+  }
 });
 
 final selectedMonthProvider = StateProvider<DateTime>((ref) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
@@ -180,7 +181,7 @@ class CategoriesScreen extends ConsumerWidget {
       if (category == null) {
         await repo.addCategory(
           CategoriesCompanion.insert(
-            id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'cat_${const Uuid().v4()}',
             name: name,
             icon: icon,
           ),

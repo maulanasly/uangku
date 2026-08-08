@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'providers/transaction_provider.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -16,10 +17,13 @@ class UangkuApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.system;
+
     return MaterialApp.router(
       title: 'Money Tracker',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
+      themeMode: themeMode,
       routerConfig: appRouter,
     );
   }

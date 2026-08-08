@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/models/transaction_type.dart';
 import '../../providers/database_provider.dart';
@@ -89,7 +90,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
       } else {
         // Insert new
         final transaction = TransactionsCompanion.insert(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          id: const Uuid().v4(),
           date: _selectedDate,
           amount: double.parse(_amountController.text),
           category: _selectedCategory,

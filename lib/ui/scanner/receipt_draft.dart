@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/models/transaction_type.dart';
 import '../../core/utils/receipt_parser.dart';
@@ -92,7 +93,7 @@ class ReceiptDraft {
 
   TransactionsCompanion toCompanion() {
     return TransactionsCompanion.insert(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: const Uuid().v4(),
       date: date,
       amount: double.parse(amountText),
       category: category,

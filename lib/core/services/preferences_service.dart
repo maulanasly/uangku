@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PreferencesService {
   static const _currencyKey = 'currency_symbol';
   static const _ocrModeKey = 'ocr_mode';
+  static const _themeKey = 'theme_mode';
 
   static const supportedSymbols = ['\$', 'Rp', '€', '£', '¥'];
   static const ocrModes = ['auto', 'gemini', 'ocrspace'];
@@ -25,5 +26,15 @@ class PreferencesService {
   Future<void> setOcrMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_ocrModeKey, mode);
+  }
+
+  Future<String> getThemeModePref() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_themeKey) ?? 'system';
+  }
+
+  Future<void> setThemeModePref(String mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeKey, mode);
   }
 }
