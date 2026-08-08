@@ -701,6 +701,11 @@ class $TransactionItemsTable extends TransactionItems
   late final GeneratedColumn<double> unitPrice = GeneratedColumn<double>(
       'unit_price', aliasedName, true,
       type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _weightMeta = const VerificationMeta('weight');
+  @override
+  late final GeneratedColumn<double> weight = GeneratedColumn<double>(
+      'weight', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
   static const VerificationMeta _totalMeta = const VerificationMeta('total');
   @override
   late final GeneratedColumn<double> total = GeneratedColumn<double>(
@@ -716,7 +721,7 @@ class $TransactionItemsTable extends TransactionItems
       defaultValue: const Constant(0));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, transactionId, name, quantity, unitPrice, total, position];
+      [id, transactionId, name, quantity, unitPrice, weight, total, position];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -755,6 +760,10 @@ class $TransactionItemsTable extends TransactionItems
       context.handle(_unitPriceMeta,
           unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
     }
+    if (data.containsKey('weight')) {
+      context.handle(_weightMeta,
+          weight.isAcceptableOrUnknown(data['weight']!, _weightMeta));
+    }
     if (data.containsKey('total')) {
       context.handle(
           _totalMeta, total.isAcceptableOrUnknown(data['total']!, _totalMeta));
@@ -784,6 +793,8 @@ class $TransactionItemsTable extends TransactionItems
           .read(DriftSqlType.double, data['${effectivePrefix}quantity'])!,
       unitPrice: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}unit_price']),
+      weight: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}weight']),
       total: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}total'])!,
       position: attachedDatabase.typeMapping
@@ -804,6 +815,7 @@ class TransactionItemEntity extends DataClass
   final String name;
   final double quantity;
   final double? unitPrice;
+  final double? weight;
   final double total;
   final int position;
   const TransactionItemEntity(
@@ -812,6 +824,7 @@ class TransactionItemEntity extends DataClass
       required this.name,
       required this.quantity,
       this.unitPrice,
+      this.weight,
       required this.total,
       required this.position});
   @override
@@ -823,6 +836,9 @@ class TransactionItemEntity extends DataClass
     map['quantity'] = Variable<double>(quantity);
     if (!nullToAbsent || unitPrice != null) {
       map['unit_price'] = Variable<double>(unitPrice);
+    }
+    if (!nullToAbsent || weight != null) {
+      map['weight'] = Variable<double>(weight);
     }
     map['total'] = Variable<double>(total);
     map['position'] = Variable<int>(position);
@@ -838,6 +854,8 @@ class TransactionItemEntity extends DataClass
       unitPrice: unitPrice == null && nullToAbsent
           ? const Value.absent()
           : Value(unitPrice),
+      weight:
+          weight == null && nullToAbsent ? const Value.absent() : Value(weight),
       total: Value(total),
       position: Value(position),
     );
@@ -852,6 +870,7 @@ class TransactionItemEntity extends DataClass
       name: serializer.fromJson<String>(json['name']),
       quantity: serializer.fromJson<double>(json['quantity']),
       unitPrice: serializer.fromJson<double?>(json['unitPrice']),
+      weight: serializer.fromJson<double?>(json['weight']),
       total: serializer.fromJson<double>(json['total']),
       position: serializer.fromJson<int>(json['position']),
     );
@@ -865,6 +884,7 @@ class TransactionItemEntity extends DataClass
       'name': serializer.toJson<String>(name),
       'quantity': serializer.toJson<double>(quantity),
       'unitPrice': serializer.toJson<double?>(unitPrice),
+      'weight': serializer.toJson<double?>(weight),
       'total': serializer.toJson<double>(total),
       'position': serializer.toJson<int>(position),
     };
@@ -876,6 +896,7 @@ class TransactionItemEntity extends DataClass
           String? name,
           double? quantity,
           Value<double?> unitPrice = const Value.absent(),
+          Value<double?> weight = const Value.absent(),
           double? total,
           int? position}) =>
       TransactionItemEntity(
@@ -884,6 +905,7 @@ class TransactionItemEntity extends DataClass
         name: name ?? this.name,
         quantity: quantity ?? this.quantity,
         unitPrice: unitPrice.present ? unitPrice.value : this.unitPrice,
+        weight: weight.present ? weight.value : this.weight,
         total: total ?? this.total,
         position: position ?? this.position,
       );
@@ -896,6 +918,7 @@ class TransactionItemEntity extends DataClass
       name: data.name.present ? data.name.value : this.name,
       quantity: data.quantity.present ? data.quantity.value : this.quantity,
       unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
+      weight: data.weight.present ? data.weight.value : this.weight,
       total: data.total.present ? data.total.value : this.total,
       position: data.position.present ? data.position.value : this.position,
     );
@@ -909,6 +932,7 @@ class TransactionItemEntity extends DataClass
           ..write('name: $name, ')
           ..write('quantity: $quantity, ')
           ..write('unitPrice: $unitPrice, ')
+          ..write('weight: $weight, ')
           ..write('total: $total, ')
           ..write('position: $position')
           ..write(')'))
@@ -917,7 +941,7 @@ class TransactionItemEntity extends DataClass
 
   @override
   int get hashCode => Object.hash(
-      id, transactionId, name, quantity, unitPrice, total, position);
+      id, transactionId, name, quantity, unitPrice, weight, total, position);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -927,6 +951,7 @@ class TransactionItemEntity extends DataClass
           other.name == this.name &&
           other.quantity == this.quantity &&
           other.unitPrice == this.unitPrice &&
+          other.weight == this.weight &&
           other.total == this.total &&
           other.position == this.position);
 }
@@ -937,6 +962,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
   final Value<String> name;
   final Value<double> quantity;
   final Value<double?> unitPrice;
+  final Value<double?> weight;
   final Value<double> total;
   final Value<int> position;
   final Value<int> rowid;
@@ -946,6 +972,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
     this.name = const Value.absent(),
     this.quantity = const Value.absent(),
     this.unitPrice = const Value.absent(),
+    this.weight = const Value.absent(),
     this.total = const Value.absent(),
     this.position = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -956,6 +983,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
     required String name,
     this.quantity = const Value.absent(),
     this.unitPrice = const Value.absent(),
+    this.weight = const Value.absent(),
     required double total,
     this.position = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -969,6 +997,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
     Expression<String>? name,
     Expression<double>? quantity,
     Expression<double>? unitPrice,
+    Expression<double>? weight,
     Expression<double>? total,
     Expression<int>? position,
     Expression<int>? rowid,
@@ -979,6 +1008,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
       if (name != null) 'name': name,
       if (quantity != null) 'quantity': quantity,
       if (unitPrice != null) 'unit_price': unitPrice,
+      if (weight != null) 'weight': weight,
       if (total != null) 'total': total,
       if (position != null) 'position': position,
       if (rowid != null) 'rowid': rowid,
@@ -991,6 +1021,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
       Value<String>? name,
       Value<double>? quantity,
       Value<double?>? unitPrice,
+      Value<double?>? weight,
       Value<double>? total,
       Value<int>? position,
       Value<int>? rowid}) {
@@ -1000,6 +1031,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
       name: name ?? this.name,
       quantity: quantity ?? this.quantity,
       unitPrice: unitPrice ?? this.unitPrice,
+      weight: weight ?? this.weight,
       total: total ?? this.total,
       position: position ?? this.position,
       rowid: rowid ?? this.rowid,
@@ -1024,6 +1056,9 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
     if (unitPrice.present) {
       map['unit_price'] = Variable<double>(unitPrice.value);
     }
+    if (weight.present) {
+      map['weight'] = Variable<double>(weight.value);
+    }
     if (total.present) {
       map['total'] = Variable<double>(total.value);
     }
@@ -1044,6 +1079,7 @@ class TransactionItemsCompanion extends UpdateCompanion<TransactionItemEntity> {
           ..write('name: $name, ')
           ..write('quantity: $quantity, ')
           ..write('unitPrice: $unitPrice, ')
+          ..write('weight: $weight, ')
           ..write('total: $total, ')
           ..write('position: $position, ')
           ..write('rowid: $rowid')
@@ -2025,6 +2061,7 @@ typedef $$TransactionItemsTableCreateCompanionBuilder
   required String name,
   Value<double> quantity,
   Value<double?> unitPrice,
+  Value<double?> weight,
   required double total,
   Value<int> position,
   Value<int> rowid,
@@ -2036,6 +2073,7 @@ typedef $$TransactionItemsTableUpdateCompanionBuilder
   Value<String> name,
   Value<double> quantity,
   Value<double?> unitPrice,
+  Value<double?> weight,
   Value<double> total,
   Value<int> position,
   Value<int> rowid,
@@ -2082,6 +2120,9 @@ class $$TransactionItemsTableFilterComposer
 
   ColumnFilters<double> get unitPrice => $composableBuilder(
       column: $table.unitPrice, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get total => $composableBuilder(
       column: $table.total, builder: (column) => ColumnFilters(column));
@@ -2131,6 +2172,9 @@ class $$TransactionItemsTableOrderingComposer
   ColumnOrderings<double> get unitPrice => $composableBuilder(
       column: $table.unitPrice, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<double> get weight => $composableBuilder(
+      column: $table.weight, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get total => $composableBuilder(
       column: $table.total, builder: (column) => ColumnOrderings(column));
 
@@ -2178,6 +2222,9 @@ class $$TransactionItemsTableAnnotationComposer
 
   GeneratedColumn<double> get unitPrice =>
       $composableBuilder(column: $table.unitPrice, builder: (column) => column);
+
+  GeneratedColumn<double> get weight =>
+      $composableBuilder(column: $table.weight, builder: (column) => column);
 
   GeneratedColumn<double> get total =>
       $composableBuilder(column: $table.total, builder: (column) => column);
@@ -2235,6 +2282,7 @@ class $$TransactionItemsTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<double> quantity = const Value.absent(),
             Value<double?> unitPrice = const Value.absent(),
+            Value<double?> weight = const Value.absent(),
             Value<double> total = const Value.absent(),
             Value<int> position = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -2245,6 +2293,7 @@ class $$TransactionItemsTableTableManager extends RootTableManager<
             name: name,
             quantity: quantity,
             unitPrice: unitPrice,
+            weight: weight,
             total: total,
             position: position,
             rowid: rowid,
@@ -2255,6 +2304,7 @@ class $$TransactionItemsTableTableManager extends RootTableManager<
             required String name,
             Value<double> quantity = const Value.absent(),
             Value<double?> unitPrice = const Value.absent(),
+            Value<double?> weight = const Value.absent(),
             required double total,
             Value<int> position = const Value.absent(),
             Value<int> rowid = const Value.absent(),
@@ -2265,6 +2315,7 @@ class $$TransactionItemsTableTableManager extends RootTableManager<
             name: name,
             quantity: quantity,
             unitPrice: unitPrice,
+            weight: weight,
             total: total,
             position: position,
             rowid: rowid,

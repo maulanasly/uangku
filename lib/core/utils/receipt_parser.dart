@@ -4,12 +4,14 @@ class ReceiptItem {
   final String name;
   final double quantity;
   final double? unitPrice;
+  final double? weight;
   final double total;
 
   const ReceiptItem({
     required this.name,
     this.quantity = 1,
     this.unitPrice,
+    this.weight,
     required this.total,
   });
 }

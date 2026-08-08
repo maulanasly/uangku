@@ -83,6 +83,21 @@ class TransactionRepository {
     return _db.update(_db.transactions).replace(transaction);
   }
 
+  Future<void> updateTransactionWithItems(
+    TransactionEntity transaction,
+    List<TransactionItemsCompanion> items,
+  ) {
+    return _db.transaction(() async {
+      await _db.update(_db.transactions).replace(transaction);
+      await (_db.delete(_db.transactionItems)
+            ..where((t) => t.transactionId.equals(transaction.id)))
+          .go();
+      for (final item in items) {
+        await _db.into(_db.transactionItems).insert(item);
+      }
+    });
+  }
+
   Future<void> deleteTransaction(String id) {
     return (_db.delete(_db.transactions)..where((t) => t.id.equals(id))).go();
   }

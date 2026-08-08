@@ -391,7 +391,14 @@ class _ReviewTransactionBottomSheetState
                 ),
                 onChanged: (v) => _updateItem(
                   i,
-                  ReceiptItemDraft(id: item.id, name: v, total: item.total),
+                  ReceiptItemDraft(
+                    id: item.id,
+                    name: v,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice,
+                    weight: item.weight,
+                    total: item.total,
+                  ),
                 ),
               ),
             ),
@@ -412,13 +419,16 @@ class _ReviewTransactionBottomSheetState
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   final qty = double.tryParse(v) ?? 1;
-                  final unitPrice = item.unitPrice ?? (item.quantity > 0 ? item.total / item.quantity : item.total);
+                  final unitPrice = item.unitPrice ??
+                      (item.quantity > 0 ? item.total / item.quantity : item.total);
                   _updateItem(
                     i,
                     ReceiptItemDraft(
                       id: item.id,
                       name: item.name,
                       quantity: qty,
+                      unitPrice: unitPrice,
+                      weight: item.weight,
                       total: unitPrice * qty,
                     ),
                   );
@@ -448,6 +458,8 @@ class _ReviewTransactionBottomSheetState
                       id: item.id,
                       name: item.name,
                       quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      weight: item.weight,
                       total: total,
                     ),
                   );
