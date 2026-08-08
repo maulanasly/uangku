@@ -25,11 +25,6 @@ class SettingsScreen extends ConsumerWidget {
       body: ListView(
         children: [
           ListTile(
-            title: const Text('Analytics'),
-            leading: const Icon(Icons.bar_chart),
-            onTap: () => context.push('/analytics'),
-          ),
-          ListTile(
             title: const Text('Categories'),
             leading: const Icon(Icons.category),
             onTap: () => context.push('/categories'),
