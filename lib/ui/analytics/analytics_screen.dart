@@ -45,7 +45,8 @@ class AnalyticsScreen extends ConsumerWidget {
             ).name;
           }
 
-          final currencyFormat = NumberFormat.currency(symbol: '\$', decimalDigits: 0);
+          final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+          final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 0);
 
           return RefreshIndicator(
             onRefresh: () async {

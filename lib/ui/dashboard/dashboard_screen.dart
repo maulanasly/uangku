@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
 import '../../core/models/transaction_type.dart';
+import '../../core/ui/receipt_image_dialog.dart';
 import '../../core/utils/summary_calculator.dart';
 import '../../data/database/database.dart';
 
@@ -231,13 +232,17 @@ class DashboardScreen extends ConsumerWidget {
                                 data: (items) => Row(
                                   children: [
                                     if (t.receiptImagePath != null)
-                                      const Padding(
-                                        padding: EdgeInsets.only(right: 4),
-                                        child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                                      InkWell(
+                                        onTap: () => showReceiptImageDialog(context, t),
+                                        child: const Padding(
+                                          padding: EdgeInsets.only(right: 4),
+                                          child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                                        ),
                                       ),
                                     Text(items.isEmpty
                                         ? DateFormat.yMMMd().format(t.date)
-                                        : '${DateFormat.yMMMd().format(t.date)} · ${items.length} items'),
+                                        : '${DateFormat.yMMMd().format(t.date)} · ${items.length} items',
+                                    ),
                                   ],
                                 ),
                                 loading: () => Text(DateFormat.yMMMd().format(t.date)),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/models/transaction_type.dart';
+import '../../core/ui/receipt_image_dialog.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/transaction_provider.dart';
 import '../../data/database/database.dart';
@@ -145,10 +146,11 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
               // Amount
               TextFormField(
                 controller: _amountController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Amount',
-                  prefixText: '\$ ',
-                  border: OutlineInputBorder(),
+                  prefixText:
+                      '${ref.watch(currencySymbolProvider).valueOrNull ?? '\$'} ',
+                  border: const OutlineInputBorder(),
                 ),
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
@@ -231,7 +233,17 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
                 ),
                 maxLines: 2,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // View Receipt
+              if (widget.transaction?.receiptImagePath != null) ...[
+                OutlinedButton.icon(
+                  onPressed: () => showReceiptImageDialog(context, widget.transaction!),
+                  icon: const Icon(Icons.photo),
+                  label: const Text('View Receipt'),
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Save Button
               FilledButton(

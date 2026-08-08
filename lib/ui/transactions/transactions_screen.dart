@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_query.dart';
 import '../../core/models/transaction_type.dart';
+import '../../core/ui/receipt_image_dialog.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 
@@ -205,9 +206,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       subtitle: Row(
                         children: [
                           if (t.receiptImagePath != null)
-                            const Padding(
-                              padding: EdgeInsets.only(right: 4),
-                              child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                            InkWell(
+                              onTap: () => showReceiptImageDialog(context, t),
+                              child: const Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                              ),
                             ),
                           Text(
                             '${DateFormat.yMMMd().format(t.date)} · ${t.category}',
