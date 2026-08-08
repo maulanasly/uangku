@@ -209,6 +209,8 @@ class _ReceiptCollectionScreenState
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(t.merchant,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                                 fontWeight: FontWeight.bold, fontSize: 15)),
                         const SizedBox(height: 4),

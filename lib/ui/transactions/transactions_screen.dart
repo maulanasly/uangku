@@ -252,7 +252,12 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                    child: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                   SizedBox(
                     width: 56,
@@ -260,6 +265,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                       item.quantity == item.quantity.truncateToDouble()
                           ? '${item.quantity.toInt()}x'
                           : '${item.quantity}x',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
@@ -268,6 +275,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     width: 80,
                     child: Text(
                       currencyFormat.format(item.total),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     ),
@@ -283,6 +292,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                 width: 80,
                 child: Text(
                   currencyFormat.format(total),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),

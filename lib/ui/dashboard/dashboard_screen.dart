@@ -356,7 +356,12 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     flex: 3,
-                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                    child: Text(
+                      item.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13),
+                    ),
                   ),
                   SizedBox(
                     width: 56,
@@ -364,6 +369,8 @@ class DashboardScreen extends ConsumerWidget {
                       item.quantity == item.quantity.truncateToDouble()
                           ? '${item.quantity.toInt()}x'
                           : '${item.quantity}x',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
@@ -372,6 +379,8 @@ class DashboardScreen extends ConsumerWidget {
                     width: 80,
                     child: Text(
                       currencyFormat.format(item.total),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                     ),
@@ -387,6 +396,8 @@ class DashboardScreen extends ConsumerWidget {
                 width: 80,
                 child: Text(
                   currencyFormat.format(total),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
                   style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                 ),
@@ -492,61 +503,68 @@ class _CategoryBarRow extends StatelessWidget {
         ? ((fraction.clamp(0.0, 1.0)) * 100).toStringAsFixed(0)
         : '';
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxBarWidth = constraints.maxWidth - 168;
-        return Row(
-          children: [
-            Container(
-              width: 12,
-              height: 12,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-            const SizedBox(width: 8),
-            SizedBox(
-              width: 100,
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              height: 18,
-              width: maxBarWidth * (hasBudget ? fraction.clamp(0.0, 1.0) : 0.0),
-              decoration: BoxDecoration(
-                color: over ? Colors.red.shade400 : color.withValues(alpha: 0.7),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
-              width: hasBudget ? 100 : 72,
-              child: Text(
-                hasBudget
-                    ? '${currencyFormat.format(amount)}/${currencyFormat.format(limit!)}'
-                    : currencyFormat.format(amount),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: over ? Colors.red.shade700 : null,
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 100,
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: hasBudget ? fraction.clamp(0.0, 1.0) : 0.0,
+              heightFactor: 1,
+              child: Container(
+                height: 18,
+                decoration: BoxDecoration(
+                  color: over ? Colors.red.shade400 : color.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(4),
                 ),
               ),
             ),
-            const SizedBox(width: 4),
-            SizedBox(
-              width: 36,
-              child: Text(
-                hasBudget ? '$percent%' : '',
-                textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: hasBudget ? 100 : 72,
+          child: Text(
+            hasBudget
+                ? '${currencyFormat.format(amount)}/${currencyFormat.format(limit!)}'
+                : currencyFormat.format(amount),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: over ? Colors.red.shade700 : null,
             ),
-          ],
-        );
-      },
+          ),
+        ),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 36,
+          child: Text(
+            hasBudget ? '$percent%' : '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 11, color: Colors.grey),
+          ),
+        ),
+      ],
     );
   }
 }
