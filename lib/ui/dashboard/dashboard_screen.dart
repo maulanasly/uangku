@@ -62,7 +62,18 @@ class DashboardScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
-                  child: Card(
+                  child: GestureDetector(
+                    onHorizontalDragEnd: (details) {
+                      if (details.primaryVelocity == null) return;
+                      if (details.primaryVelocity! < -30) {
+                        ref.read(selectedMonthProvider.notifier).state =
+                            SummaryCalculator.shiftMonth(selectedMonth, 1);
+                      } else if (details.primaryVelocity! > 30) {
+                        ref.read(selectedMonthProvider.notifier).state =
+                            SummaryCalculator.shiftMonth(selectedMonth, -1);
+                      }
+                    },
+                    child: Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
                       child: Column(
@@ -129,6 +140,7 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
+              ),
               ),
               SliverToBoxAdapter(
                 child: Padding(
