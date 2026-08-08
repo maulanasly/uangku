@@ -164,78 +164,15 @@ class AnalyticsScreen extends ConsumerWidget {
                           child: Center(child: Text('No expenses in the last 6 months')),
                         )
                       else
-                        SizedBox(
-                          height: data.categorySpending.length * 44.0,
-                          child: BarChart(
-                            BarChartData(
-                              gridData: const FlGridData(show: false),
-                              borderData: FlBorderData(show: false),
-                              barTouchData: BarTouchData(
-                                touchTooltipData: BarTouchTooltipData(
-                                  tooltipBgColor: Colors.black87,
-                                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                                    final value = rod.toY;
-                                    return BarTooltipItem(
-                                      currencyFormat.format(value),
-                                      const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                    );
-                                  },
-                                ),
-                              ),
-                              titlesData: const FlTitlesData(
-                                leftTitles: AxisTitles(),
-                                rightTitles: AxisTitles(),
-                                topTitles: AxisTitles(),
-                                bottomTitles: AxisTitles(),
-                              ),
-                              barGroups: [
-                                for (var i = 0; i < data.categorySpending.length; i++)
-                                  BarChartGroupData(
-                                    x: i,
-                                    barRods: [
-                                      BarChartRodData(
-                                        toY: data.categorySpending.values.elementAt(i),
-                                        color: _categoryColor(i),
-                                        width: 18,
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                    ],
-                                  ),
-                              ],
-                            ),
-                          ),
+                        _AnalyticsCategoryBars(
+                          spending: data.categorySpending,
+                          categoryName: categoryName,
+                          currencyFormat: currencyFormat,
                         ),
                     ],
                   ),
                 ),
               ),
-              if (data.categorySpending.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (var i = 0; i < data.categorySpending.length; i++)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 12,
-                                height: 12,
-                                decoration: BoxDecoration(
-                                  color: _categoryColor(i),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(categoryName(data.categorySpending.keys.elementAt(i))),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
             ],
           ),
           );
@@ -245,19 +182,132 @@ class AnalyticsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AnalyticsCategoryBars extends StatelessWidget {
+  final Map<String, double> spending;
+  final String Function(String) categoryName;
+  final NumberFormat currencyFormat;
+
+  const _AnalyticsCategoryBars({
+    required this.spending,
+    required this.categoryName,
+    required this.currencyFormat,
+  });
 
   static const _palette = [
-    Colors.blue,
-    Colors.orange,
-    Colors.purple,
-    Colors.teal,
-    Colors.pink,
-    Colors.indigo,
-    Colors.lime,
-    Colors.brown,
+    Color(0xFF4F8CFF),
+    Color(0xFF38C6A0),
+    Color(0xFFF59E0B),
+    Color(0xFFFF6B6B),
+    Color(0xFFA78BFA),
+    Color(0xFFF472B6),
+    Color(0xFF34D399),
+    Color(0xFFFBBF24),
   ];
 
-  Color _categoryColor(int index) => _palette[index % _palette.length];
+  @override
+  Widget build(BuildContext context) {
+    final total = spending.values.fold<double>(0, (a, b) => a + b);
+    final sorted = spending.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    return Column(
+      children: [
+        for (var i = 0; i < sorted.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _buildBar(
+            label: categoryName(sorted[i].key),
+            amount: sorted[i].value,
+            total: total,
+            color: _palette[i % _palette.length],
+          ),
+        ],
+        const SizedBox(height: 12),
+        const Divider(),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const Spacer(),
+              SizedBox(
+                width: 80,
+                child: Text(
+                  currencyFormat.format(total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBar({
+    required String label,
+    required double amount,
+    required double total,
+    required Color color,
+  }) {
+    final fraction = total > 0 ? amount / total : 0.0;
+    final percent = (fraction * 100).toStringAsFixed(0);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxBarWidth = constraints.maxWidth - 168;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 100,
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                height: 18,
+                width: maxBarWidth * fraction,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const Spacer(),
+              SizedBox(
+                width: 72,
+                child: Text(
+                  currencyFormat.format(amount),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 36,
+                child: Text(
+                  '$percent%',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontSize: 11, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 }
 
 class _LegendDot extends StatelessWidget {
