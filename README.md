@@ -12,7 +12,7 @@ A personal money tracker built with Flutter. Track expenses against per-category
 - **Analytics** — monthly spending trends, category spending
 - **Settings** — manage categories with visual icon picker, set per-category budgets, export/import CSV, choose a currency symbol via visual selector, reset all transaction data
 
-The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v3; a `budgets` table holds per-category monthly limits).
+The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v3; a `budgets` table holds per-category monthly limits). Money values are displayed with compact notation — `1.2K`/`1.23M` (English suffixes) for amounts of 1,000 and up (`lib/core/utils/money_format.dart`); editable inputs always use plain numbers.
 
 ## Getting Started
 

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_query.dart';
 import '../../core/ui/receipt_image_dialog.dart';
+import '../../core/utils/money_format.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 
@@ -164,7 +165,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     ],
                   );
                 }
-                final currencyFormat = NumberFormat.currency(symbol: currencySymbol, decimalDigits: 2);
+                final currencyFormat = moneyFormat(currencySymbol);
                 return ListView.builder(
                   itemCount: transactions.length,
                   itemBuilder: (context, index) {

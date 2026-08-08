@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 
 import '../../providers/database_provider.dart';
 import '../../providers/transaction_provider.dart';
+import '../../core/utils/money_format.dart';
 import '../../data/database/database.dart';
 
 class BudgetsScreen extends ConsumerWidget {
@@ -48,8 +48,7 @@ class BudgetsScreen extends ConsumerWidget {
           final budgetByCategory = {
             for (final b in budgets) b.categoryId: b.monthlyLimit,
           };
-          final currencyFormat =
-              NumberFormat.currency(symbol: currencySymbol, decimalDigits: 0);
+          final currencyFormat = moneyFormat(currencySymbol);
 
           return ListView.builder(
             itemCount: categories.length,
