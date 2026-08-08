@@ -202,8 +202,17 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         ),
                       ),
                       title: Text(t.merchant),
-                      subtitle: Text(
-                        '${DateFormat.yMMMd().format(t.date)} · ${t.category}',
+                      subtitle: Row(
+                        children: [
+                          if (t.receiptImagePath != null)
+                            const Padding(
+                              padding: EdgeInsets.only(right: 4),
+                              child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                            ),
+                          Text(
+                            '${DateFormat.yMMMd().format(t.date)} · ${t.category}',
+                          ),
+                        ],
                       ),
                       trailing: Text(
                         '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',

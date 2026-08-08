@@ -228,9 +228,18 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                               title: Text(t.merchant),
                               subtitle: itemsAsync.when(
-                                data: (items) => Text(items.isEmpty
-                                    ? DateFormat.yMMMd().format(t.date)
-                                    : '${DateFormat.yMMMd().format(t.date)} · ${items.length} items'),
+                                data: (items) => Row(
+                                  children: [
+                                    if (t.receiptImagePath != null)
+                                      const Padding(
+                                        padding: EdgeInsets.only(right: 4),
+                                        child: Icon(Icons.photo, size: 14, color: Colors.grey),
+                                      ),
+                                    Text(items.isEmpty
+                                        ? DateFormat.yMMMd().format(t.date)
+                                        : '${DateFormat.yMMMd().format(t.date)} · ${items.length} items'),
+                                  ],
+                                ),
                                 loading: () => Text(DateFormat.yMMMd().format(t.date)),
                                 error: (_, __) => Text(DateFormat.yMMMd().format(t.date)),
                               ),
