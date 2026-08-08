@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 
 import '../../providers/transaction_provider.dart';
@@ -147,35 +146,16 @@ class DashboardScreen extends ConsumerWidget {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),
                           child: Center(
-                            child: Text('No expenses in ${DateFormat.yMMMM().format(selectedMonth)}'),
+                            child: Text(
+                              'No expenses in ${DateFormat.yMMMM().format(selectedMonth)}',
+                            ),
                           ),
                         )
                       else
-                        SizedBox(
-                          height: 220,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              PieChart(
-                                PieChartData(
-                                  sections: _buildSections(
-                                    summary.categoryBreakdown,
-                                    categoryName,
-                                    Theme.of(context).colorScheme,
-                                  ),
-                                  centerSpaceRadius: 45,
-                                  sectionsSpace: 2,
-                                ),
-                              ),
-                              Text(
-                                currencyFormat.format(summary.expense),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
+                        _HorizontalCategoryBars(
+                          breakdown: summary.categoryBreakdown,
+                          categoryName: categoryName,
+                          currencyFormat: currencyFormat,
                         ),
                     ],
                   ),
@@ -227,34 +207,44 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           );
                         },
-                        child: ListTile(
-                          onTap: () => context.push('/add_transaction', extra: t),
-                          leading: CircleAvatar(
-                            backgroundColor: isExpense ? Colors.red.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
-                            child: Icon(
-                              isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                              color: isExpense ? Colors.red : Colors.green,
-                            ),
-                          ),
-                          title: Text(t.merchant),
-                          subtitle: FutureBuilder<List<TransactionItemEntity>>(
-                            future: ref.read(transactionRepositoryProvider).watchItemsFor(t.id).first,
-                            builder: (context, snapshot) {
-                              final itemCount = snapshot.data?.length ?? 0;
-                              return Text(
-                                itemCount > 0
-                                    ? '${DateFormat.yMMMd().format(t.date)} · $itemCount items'
-                                    : DateFormat.yMMMd().format(t.date),
-                              );
-                            },
-                          ),
-                          trailing: Text(
-                            '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
-                            style: TextStyle(
-                              color: isExpense ? Colors.red : Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final itemsAsync = ref.watch(transactionItemsFamily(t.id));
+                            return ExpansionTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isExpense ? Colors.red.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
+                                child: Icon(
+                                  isExpense ? Icons.arrow_downward : Icons.arrow_upward,
+                                  color: isExpense ? Colors.red : Colors.green,
+                                ),
+                              ),
+                              title: Text(t.merchant),
+                              subtitle: itemsAsync.when(
+                                data: (items) => Text(items.isEmpty
+                                    ? DateFormat.yMMMd().format(t.date)
+                                    : '${DateFormat.yMMMd().format(t.date)} · ${items.length} items'),
+                                loading: () => Text(DateFormat.yMMMd().format(t.date)),
+                                error: (_, __) => Text(DateFormat.yMMMd().format(t.date)),
+                              ),
+                              trailing: Text(
+                                '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
+                                style: TextStyle(
+                                  color: isExpense ? Colors.red : Colors.green,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              children: [
+                                itemsAsync.when(
+                                  data: (items) => _buildItemDetails(items, currencyFormat),
+                                  loading: () => const Padding(
+                                    padding: EdgeInsets.all(16),
+                                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  ),
+                                  error: (_, __) => const SizedBox.shrink(),
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       );
                     },
@@ -303,42 +293,205 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  static List<PieChartSectionData> _buildSections(
-    Map<String, double> breakdown,
-    String Function(String) categoryName,
-    ColorScheme colors,
+  Widget _buildItemDetails(
+    List<TransactionItemEntity> items,
+    NumberFormat currencyFormat,
   ) {
-    final palette = [
-      colors.primary,
-      colors.secondary,
-      colors.tertiary,
-      const Color(0xFFFF6B6B),
-      const Color(0xFFA78BFA),
-      const Color(0xFFF472B6),
-      const Color(0xFF34D399),
-      const Color(0xFFFBBF24),
-    ];
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Text('No line items', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    final total = items.fold<double>(0, (s, i) => s + i.total);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                  ),
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      item.quantity == item.quantity.truncateToDouble()
+                          ? '${item.quantity.toInt()}x'
+                          : '${item.quantity}x',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      currencyFormat.format(item.total),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const Divider(),
+          Row(
+            children: [
+              const Spacer(),
+              SizedBox(
+                width: 80,
+                child: Text(
+                  currencyFormat.format(total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
+class _HorizontalCategoryBars extends StatelessWidget {
+  final Map<String, double> breakdown;
+  final String Function(String) categoryName;
+  final NumberFormat currencyFormat;
+
+  const _HorizontalCategoryBars({
+    required this.breakdown,
+    required this.categoryName,
+    required this.currencyFormat,
+  });
+
+  static const _palette = [
+    Color(0xFF4F8CFF),
+    Color(0xFF38C6A0),
+    Color(0xFFF59E0B),
+    Color(0xFFFF6B6B),
+    Color(0xFFA78BFA),
+    Color(0xFFF472B6),
+    Color(0xFF34D399),
+    Color(0xFFFBBF24),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
     final total = breakdown.values.fold<double>(0, (a, b) => a + b);
     final sorted = breakdown.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
-    return [
-      for (var i = 0; i < sorted.length; i++)
-        PieChartSectionData(
-          color: palette[i % palette.length],
-          value: sorted[i].value,
-          title:
-              '${categoryName(sorted[i].key)}\n${((sorted[i].value / total) * 100).toStringAsFixed(0)}%',
-          radius: 50,
-          titleStyle: TextStyle(
-            fontSize: 11,
-            color: palette[i % palette.length].computeLuminance() > 0.5
-                ? Colors.black87
-                : Colors.white,
+    return Column(
+      children: [
+        for (var i = 0; i < sorted.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          _CategoryBarRow(
+            label: categoryName(sorted[i].key),
+            amount: sorted[i].value,
+            total: total,
+            color: _palette[i % _palette.length],
+            currencyFormat: currencyFormat,
           ),
-          borderSide: BorderSide.none,
+        ],
+        const SizedBox(height: 12),
+        const Divider(),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const Spacer(),
+              SizedBox(
+                width: 80,
+                child: Text(
+                  currencyFormat.format(total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
         ),
-    ];
+      ],
+    );
+  }
+}
+
+class _CategoryBarRow extends StatelessWidget {
+  final String label;
+  final double amount;
+  final double total;
+  final Color color;
+  final NumberFormat currencyFormat;
+
+  const _CategoryBarRow({
+    required this.label,
+    required this.amount,
+    required this.total,
+    required this.color,
+    required this.currencyFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fraction = total > 0 ? amount / total : 0.0;
+    final percent = (fraction * 100).toStringAsFixed(0);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final maxBarWidth = constraints.maxWidth - 168;
+        return Row(
+          children: [
+            Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 100,
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              height: 18,
+              width: maxBarWidth * fraction,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const Spacer(),
+            SizedBox(
+              width: 72,
+              child: Text(
+                currencyFormat.format(amount),
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ),
+            const SizedBox(width: 4),
+            SizedBox(
+              width: 36,
+              child: Text(
+                '$percent%',
+                textAlign: TextAlign.right,
+                style: const TextStyle(fontSize: 11, color: Colors.grey),
+              ),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
