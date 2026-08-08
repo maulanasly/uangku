@@ -525,7 +525,6 @@ class _CategoryBarRow extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: FractionallySizedBox(
               widthFactor: hasBudget ? fraction.clamp(0.0, 1.0) : 0.0,
-              heightFactor: 1,
               child: Container(
                 height: 18,
                 decoration: BoxDecoration(
