@@ -40,3 +40,13 @@ class TransactionItems extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('BudgetEntity')
+class Budgets extends Table {
+  TextColumn get id => text()();
+  TextColumn get categoryId => text().references(Categories, #id)();
+  RealColumn get monthlyLimit => real()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}

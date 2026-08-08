@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_query.dart';
-import '../../core/models/transaction_type.dart';
 import '../../core/ui/receipt_image_dialog.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
@@ -62,24 +61,6 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                     (q) => TransactionQuery(
                       search: value,
                       type: q.type,
-                      category: q.category,
-                      sortField: q.sortField,
-                      direction: q.direction,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SegmentedButton<TransactionType?>(
-                  segments: const [
-                    ButtonSegment(value: null, label: Text('All')),
-                    ButtonSegment(value: TransactionType.expense, label: Text('Expense')),
-                    ButtonSegment(value: TransactionType.income, label: Text('Income')),
-                  ],
-                  selected: {query.type},
-                  onSelectionChanged: (selection) => _update(
-                    (q) => TransactionQuery(
-                      search: q.search,
-                      type: selection.first,
                       category: q.category,
                       sortField: q.sortField,
                       direction: q.direction,
@@ -188,18 +169,15 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   itemCount: transactions.length,
                   itemBuilder: (context, index) {
                     final t = transactions[index];
-                    final isExpense = t.type == TransactionType.expense;
                     final itemsAsync =
                         ref.watch(transactionItemsFamily(t.id));
                     return ExpansionTile(
                       onExpansionChanged: (expanded) {},
-                      leading: CircleAvatar(
-                        backgroundColor: isExpense
-                            ? Colors.red.withValues(alpha: 0.2)
-                            : Colors.green.withValues(alpha: 0.2),
+                      leading: const CircleAvatar(
+                        backgroundColor: Color(0x33F44336),
                         child: Icon(
-                          isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                          color: isExpense ? Colors.red : Colors.green,
+                          Icons.arrow_downward,
+                          color: Colors.red,
                         ),
                       ),
                       title: Text(t.merchant),
@@ -219,9 +197,9 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                         ],
                       ),
                       trailing: Text(
-                        '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
-                        style: TextStyle(
-                          color: isExpense ? Colors.red : Colors.green,
+                        '-${currencyFormat.format(t.amount)}',
+                        style: const TextStyle(
+                          color: Colors.red,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

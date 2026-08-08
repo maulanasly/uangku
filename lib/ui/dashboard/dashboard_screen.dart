@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 
 import '../../providers/transaction_provider.dart';
 import '../../providers/database_provider.dart';
-import '../../core/models/transaction_type.dart';
 import '../../core/ui/receipt_image_dialog.dart';
 import '../../core/utils/summary_calculator.dart';
 import '../../data/database/database.dart';
@@ -17,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final budgetsAsync = ref.watch(budgetsProvider);
     final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
     final selectedMonth = ref.watch(selectedMonthProvider);
 
@@ -36,8 +36,13 @@ class DashboardScreen extends ConsumerWidget {
             return const Center(child: Text('No transactions yet. Scan a receipt!'));
           }
 
+          final budgets = budgetsAsync.valueOrNull ?? [];
+          final budgetSummary = SummaryCalculator.budgetForMonth(
+            transactions,
+            budgets,
+            selectedMonth,
+          );
           final monthTransactions = SummaryCalculator.filterByMonth(transactions, selectedMonth);
-          final summary = SummaryCalculator.forMonth(transactions, selectedMonth);
 
           final categories = categoriesAsync.valueOrNull ?? [];
           String categoryName(String id) {
@@ -56,6 +61,7 @@ class DashboardScreen extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(transactionsProvider);
               ref.invalidate(categoriesProvider);
+              ref.invalidate(budgetsProvider);
               ref.invalidate(currencySymbolProvider);
             },
             child: CustomScrollView(
@@ -113,29 +119,39 @@ class DashboardScreen extends ConsumerWidget {
                             ],
                           ),
                           Text(
-                            currencyFormat.format(summary.balance),
+                            '${DateFormat.yMMMM().format(selectedMonth)} spending',
+                            style: const TextStyle(fontSize: 14, color: Colors.grey),
+                          ),
+                          Text(
+                            currencyFormat.format(budgetSummary.totalSpent),
                             style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text('Income', style: TextStyle(color: Colors.green)),
-                                  Text(currencyFormat.format(summary.income), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ],
+                          const SizedBox(height: 8),
+                          if (budgetSummary.totalBudget > 0) ...[
+                            Text(
+                              'of ${currencyFormat.format(budgetSummary.totalBudget)} budget',
+                              style: const TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
+                            const SizedBox(height: 12),
+                            _BudgetProgressBar(summary: budgetSummary),
+                            const SizedBox(height: 8),
+                            Text(
+                              budgetSummary.remaining >= 0
+                                  ? '${currencyFormat.format(budgetSummary.remaining)} remaining'
+                                  : '${currencyFormat.format(-budgetSummary.remaining)} over budget',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: budgetSummary.remaining >= 0
+                                    ? Colors.green.shade700
+                                    : Colors.red.shade700,
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  const Text('Expense', style: TextStyle(color: Colors.red)),
-                                  Text(currencyFormat.format(summary.expense), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ],
-                          ),
+                            ),
+                          ] else
+                            const Text(
+                              'No budgets set yet',
+                              style: TextStyle(fontSize: 13, color: Colors.grey),
+                            ),
                         ],
                       ),
                     ),
@@ -151,7 +167,7 @@ class DashboardScreen extends ConsumerWidget {
                     children: [
                       const Text('Spending by Category', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      if (summary.categoryBreakdown.isEmpty)
+                      if (budgetSummary.categorySpent.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 24),
                           child: Center(
@@ -162,7 +178,8 @@ class DashboardScreen extends ConsumerWidget {
                         )
                       else
                         _HorizontalCategoryBars(
-                          breakdown: summary.categoryBreakdown,
+                          spent: budgetSummary.categorySpent,
+                          budget: budgetSummary.categoryBudget,
                           categoryName: categoryName,
                           currencyFormat: currencyFormat,
                         ),
@@ -190,7 +207,6 @@ class DashboardScreen extends ConsumerWidget {
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
                       final t = monthTransactions[index];
-                      final isExpense = t.type == TransactionType.expense;
                       return Dismissible(
                         key: Key(t.id),
                         direction: DismissDirection.endToStart,
@@ -220,11 +236,11 @@ class DashboardScreen extends ConsumerWidget {
                           builder: (context, ref, _) {
                             final itemsAsync = ref.watch(transactionItemsFamily(t.id));
                             return ExpansionTile(
-                              leading: CircleAvatar(
-                                backgroundColor: isExpense ? Colors.red.withValues(alpha: 0.2) : Colors.green.withValues(alpha: 0.2),
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0x33F44336),
                                 child: Icon(
-                                  isExpense ? Icons.arrow_downward : Icons.arrow_upward,
-                                  color: isExpense ? Colors.red : Colors.green,
+                                  Icons.arrow_downward,
+                                  color: Colors.red,
                                 ),
                               ),
                               title: Text(t.merchant),
@@ -249,9 +265,9 @@ class DashboardScreen extends ConsumerWidget {
                                 error: (_, __) => Text(DateFormat.yMMMd().format(t.date)),
                               ),
                               trailing: Text(
-                                '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
-                                style: TextStyle(
-                                  color: isExpense ? Colors.red : Colors.green,
+                                '-${currencyFormat.format(t.amount)}',
+                                style: const TextStyle(
+                                  color: Colors.red,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -382,13 +398,38 @@ class DashboardScreen extends ConsumerWidget {
   }
 }
 
+class _BudgetProgressBar extends StatelessWidget {
+  final BudgetSummary summary;
+
+  const _BudgetProgressBar({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = summary.spentRatio().clamp(0.0, 1.0);
+    final over = summary.totalSpent > summary.totalBudget;
+    final color = over ? Colors.red.shade400 : Theme.of(context).colorScheme.primary;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(6),
+      child: LinearProgressIndicator(
+        value: ratio,
+        minHeight: 12,
+        backgroundColor: color.withValues(alpha: 0.15),
+        valueColor: AlwaysStoppedAnimation<Color>(color),
+      ),
+    );
+  }
+}
+
 class _HorizontalCategoryBars extends StatelessWidget {
-  final Map<String, double> breakdown;
+  final Map<String, double> spent;
+  final Map<String, double> budget;
   final String Function(String) categoryName;
   final NumberFormat currencyFormat;
 
   const _HorizontalCategoryBars({
-    required this.breakdown,
+    required this.spent,
+    required this.budget,
     required this.categoryName,
     required this.currencyFormat,
   });
@@ -406,8 +447,7 @@ class _HorizontalCategoryBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = breakdown.values.fold<double>(0, (a, b) => a + b);
-    final sorted = breakdown.entries.toList()
+    final sorted = spent.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
     return Column(
@@ -417,29 +457,11 @@ class _HorizontalCategoryBars extends StatelessWidget {
           _CategoryBarRow(
             label: categoryName(sorted[i].key),
             amount: sorted[i].value,
-            total: total,
+            limit: budget[sorted[i].key],
             color: _palette[i % _palette.length],
             currencyFormat: currencyFormat,
           ),
         ],
-        const SizedBox(height: 12),
-        const Divider(),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            children: [
-              const Spacer(),
-              SizedBox(
-                width: 80,
-                child: Text(
-                  currencyFormat.format(total),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -448,22 +470,26 @@ class _HorizontalCategoryBars extends StatelessWidget {
 class _CategoryBarRow extends StatelessWidget {
   final String label;
   final double amount;
-  final double total;
+  final double? limit;
   final Color color;
   final NumberFormat currencyFormat;
 
   const _CategoryBarRow({
     required this.label,
     required this.amount,
-    required this.total,
+    required this.limit,
     required this.color,
     required this.currencyFormat,
   });
 
   @override
   Widget build(BuildContext context) {
-    final fraction = total > 0 ? amount / total : 0.0;
-    final percent = (fraction * 100).toStringAsFixed(0);
+    final hasBudget = limit != null && limit! > 0;
+    final fraction = hasBudget ? amount / limit! : 0.0;
+    final over = hasBudget && amount > limit!;
+    final percent = hasBudget
+        ? ((fraction.clamp(0.0, 1.0)) * 100).toStringAsFixed(0)
+        : '';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -487,26 +513,32 @@ class _CategoryBarRow extends StatelessWidget {
             const SizedBox(width: 8),
             Container(
               height: 18,
-              width: maxBarWidth * fraction,
+              width: maxBarWidth * (hasBudget ? fraction.clamp(0.0, 1.0) : 0.0),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.7),
+                color: over ? Colors.red.shade400 : color.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
             const Spacer(),
             SizedBox(
-              width: 72,
+              width: hasBudget ? 100 : 72,
               child: Text(
-                currencyFormat.format(amount),
+                hasBudget
+                    ? '${currencyFormat.format(amount)}/${currencyFormat.format(limit!)}'
+                    : currencyFormat.format(amount),
                 textAlign: TextAlign.right,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: over ? Colors.red.shade700 : null,
+                ),
               ),
             ),
             const SizedBox(width: 4),
             SizedBox(
               width: 36,
               child: Text(
-                '$percent%',
+                hasBudget ? '$percent%' : '',
                 textAlign: TextAlign.right,
                 style: const TextStyle(fontSize: 11, color: Colors.grey),
               ),

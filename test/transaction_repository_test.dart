@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -181,6 +181,39 @@ void main() {
       await repo.deleteTransaction('5');
       final items = await repo.watchItemsFor('5').first;
       expect(items, isEmpty);
+    });
+  });
+
+  group('TransactionRepository budgets', () {
+    test('setBudget inserts a new budget', () async {
+      await repo.setBudget('cat_food', 1000);
+
+      final budgets = await repo.watchAllBudgets().first;
+      expect(budgets.length, 1);
+      expect(budgets.single.categoryId, 'cat_food');
+      expect(budgets.single.monthlyLimit, 1000);
+      expect(await repo.getBudgetForCategory('cat_food'), 1000);
+    });
+
+    test('setBudget upserts the same category', () async {
+      await repo.setBudget('cat_food', 1000);
+      await repo.setBudget('cat_food', 1200);
+
+      final budgets = await repo.watchAllBudgets().first;
+      expect(budgets.length, 1);
+      expect(budgets.single.monthlyLimit, 1200);
+    });
+
+    test('getBudgetForCategory returns null when not set', () async {
+      expect(await repo.getBudgetForCategory('cat_transport'), isNull);
+    });
+
+    test('deleteBudget removes the limit', () async {
+      await repo.setBudget('cat_food', 1000);
+      await repo.deleteBudget('cat_food');
+
+      expect(await repo.getBudgetForCategory('cat_food'), isNull);
+      expect(await repo.watchAllBudgets().first, isEmpty);
     });
   });
 }

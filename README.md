@@ -1,17 +1,18 @@
 # uangku
 
-A personal money tracker built with Flutter. Track income and expenses, scan receipts with on-device OCR, categorize transactions, and view analytics — all offline-first.
+A personal money tracker built with Flutter. Track expenses against per-category monthly budgets, scan receipts with on-device OCR, categorize transactions, and view analytics — all offline-first.
 
 ## Features
 
-- **Dashboard** — monthly income, expense, and balance with a category breakdown and month navigation
+- **Dashboard** — monthly spending with a budget progress bar, per-category budget bars (turns red when over limit), and month navigation
+- **Budgets** — set a monthly spending limit per category in Settings; see how much is spent vs. budgeted
 - **Transactions** — search, filter, and sort your transaction history
-- **Add Transaction** — manual entry or receipt scanning
+- **Add Transaction** — manual expense entry or receipt scanning
 - **Receipt Scanner** — on-device OCR that extracts individual line items (name, quantity, price) alongside merchant, total, and date. Scanned data is editable in a review dialog before saving.
-- **Analytics** — monthly trends, category spending, income vs expense
-- **Settings** — manage categories with visual icon picker, export/import CSV, choose a currency symbol via visual selector, reset all transaction data
+- **Analytics** — monthly spending trends, category spending
+- **Settings** — manage categories with visual icon picker, set per-category budgets, export/import CSV, choose a currency symbol via visual selector, reset all transaction data
 
-The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v2).
+The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v3; a `budgets` table holds per-category monthly limits).
 
 ## Getting Started
 
@@ -57,10 +58,10 @@ Database (Drift)
 
 - `lib/main.dart` — entry; loads `.env`, wraps the app in a `ProviderScope`
 - `lib/router/app_router.dart` — `go_router` config (single source of routes)
-- `lib/data/database/` — Drift DB schema (`Categories`, `Transactions`)
+- `lib/data/database/` — Drift DB schema (`Categories`, `Transactions`, `TransactionItems`, `Budgets`)
 - `lib/data/repositories/transaction_repository.dart` — only DB access goes through here
 - `lib/providers/` — hand-written Riverpod providers wiring the repository to the UI
-- `lib/ui/` — feature screens: dashboard, scanner, settings, transactions
+- `lib/ui/` — feature screens: dashboard, scanner, settings, transactions, receipts
 - `lib/core/services/` — OCR (on-device + Gemini fallback), export, preferences
 
 ### Receipt OCR

@@ -63,3 +63,8 @@ final filteredTransactionsProvider = StreamProvider<List<TransactionEntity>>((re
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.watchTransactions(query);
 });
+
+final budgetsProvider = StreamProvider<List<BudgetEntity>>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.watchAllBudgets();
+});

@@ -100,11 +100,10 @@ class AnalyticsScreen extends ConsumerWidget {
                                         ? DateFormat.yMMMd().format(data.trends[trendIndex].month)
                                         : '';
                                     final value = currencyFormat.format(spot.y);
-                                    final label = spot.barIndex == 0 ? 'Income' : 'Expense';
                                     return LineTooltipItem(
-                                      '$month\n$label: $value',
-                                      TextStyle(
-                                        color: spot.barIndex == 0 ? Colors.green : Colors.red,
+                                      '$month\nExpense: $value',
+                                      const TextStyle(
+                                        color: Colors.red,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
@@ -115,16 +114,6 @@ class AnalyticsScreen extends ConsumerWidget {
                             ),
                             borderData: FlBorderData(show: false),
                             lineBarsData: [
-                              LineChartBarData(
-                                spots: [
-                                  for (var i = 0; i < data.trends.length; i++)
-                                    FlSpot(i.toDouble(), data.trends[i].income),
-                                ],
-                                color: Colors.green,
-                                barWidth: 3,
-                                isCurved: true,
-                                dotData: const FlDotData(show: true),
-                              ),
                               LineChartBarData(
                                 spots: [
                                   for (var i = 0; i < data.trends.length; i++)
@@ -140,13 +129,8 @@ class AnalyticsScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _LegendDot(color: Colors.green, label: 'Income'),
-                          SizedBox(width: 16),
-                          _LegendDot(color: Colors.red, label: 'Expense'),
-                        ],
+                      const Center(
+                        child: _LegendDot(color: Colors.red, label: 'Expense'),
                       ),
                     ],
                   ),
@@ -159,15 +143,11 @@ class AnalyticsScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Income vs Expense', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text('Total Spending', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
                       Text(
-                        'Income: ${currencyFormat.format(data.totalIncome)}',
-                        style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'Expense: ${currencyFormat.format(data.totalExpense)}',
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        currencyFormat.format(data.totalExpense),
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                     ],
                   ),

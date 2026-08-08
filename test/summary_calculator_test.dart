@@ -9,7 +9,6 @@ TransactionEntity _tx({
   required DateTime date,
   required double amount,
   required String category,
-  TransactionType type = TransactionType.expense,
 }) {
   return TransactionEntity(
     id: id,
@@ -18,8 +17,12 @@ TransactionEntity _tx({
     category: category,
     merchant: 'Merchant $id',
     note: '',
-    type: type,
+    type: TransactionType.expense,
   );
+}
+
+BudgetEntity _budget(String categoryId, double limit) {
+  return BudgetEntity(id: 'budget_$categoryId', categoryId: categoryId, monthlyLimit: limit);
 }
 
 void main() {
@@ -35,37 +38,19 @@ void main() {
 
       final summary = SummaryCalculator.forMonth(transactions, month);
 
-      expect(summary.expense, 50);
+      expect(summary.totalSpent, 50);
     });
 
-    test('computes income, expense and balance', () {
+    test('computes total spent across categories', () {
       final transactions = [
-        _tx(
-          id: '1',
-          date: DateTime(2026, 7, 1),
-          amount: 200,
-          category: 'cat_food',
-        ),
-        _tx(
-          id: '2',
-          date: DateTime(2026, 7, 5),
-          amount: 1500,
-          category: 'cat_salary',
-          type: TransactionType.income,
-        ),
-        _tx(
-          id: '3',
-          date: DateTime(2026, 7, 20),
-          amount: 100,
-          category: 'cat_transport',
-        ),
+        _tx(id: '1', date: DateTime(2026, 7, 1), amount: 200, category: 'cat_food'),
+        _tx(id: '2', date: DateTime(2026, 7, 5), amount: 1500, category: 'cat_food'),
+        _tx(id: '3', date: DateTime(2026, 7, 20), amount: 100, category: 'cat_transport'),
       ];
 
       final summary = SummaryCalculator.forMonth(transactions, month);
 
-      expect(summary.income, 1500);
-      expect(summary.expense, 300);
-      expect(summary.balance, 1200);
+      expect(summary.totalSpent, 1800);
     });
 
     test('groups expenses by category', () {
@@ -73,23 +58,65 @@ void main() {
         _tx(id: '1', date: DateTime(2026, 7, 1), amount: 40, category: 'cat_food'),
         _tx(id: '2', date: DateTime(2026, 7, 2), amount: 60, category: 'cat_food'),
         _tx(id: '3', date: DateTime(2026, 7, 3), amount: 30, category: 'cat_transport'),
-        _tx(id: '4', date: DateTime(2026, 7, 4), amount: 5000, category: 'cat_salary', type: TransactionType.income),
       ];
 
       final summary = SummaryCalculator.forMonth(transactions, month);
 
       expect(summary.categoryBreakdown['cat_food'], 100);
       expect(summary.categoryBreakdown['cat_transport'], 30);
-      expect(summary.categoryBreakdown.containsKey('cat_salary'), isFalse);
     });
 
     test('returns empty summary for a month with no transactions', () {
       final summary = SummaryCalculator.forMonth([], month);
 
-      expect(summary.income, 0);
-      expect(summary.expense, 0);
-      expect(summary.balance, 0);
+      expect(summary.totalSpent, 0);
       expect(summary.categoryBreakdown, isEmpty);
+    });
+  });
+
+  group('SummaryCalculator.budgetForMonth', () {
+    test('computes spent, budget and remaining', () {
+      final transactions = [
+        _tx(id: '1', date: DateTime(2026, 7, 1), amount: 200, category: 'cat_food'),
+        _tx(id: '2', date: DateTime(2026, 7, 5), amount: 300, category: 'cat_food'),
+        _tx(id: '3', date: DateTime(2026, 7, 20), amount: 100, category: 'cat_transport'),
+      ];
+      final budgets = [
+        _budget('cat_food', 1000),
+        _budget('cat_transport', 500),
+      ];
+
+      final summary = SummaryCalculator.budgetForMonth(transactions, budgets, month);
+
+      expect(summary.totalSpent, 600);
+      expect(summary.totalBudget, 1500);
+      expect(summary.remaining, 900);
+      expect(summary.categoryBudget['cat_food'], 1000);
+      expect(summary.categorySpent['cat_food'], 500);
+    });
+
+    test('reports negative remaining when over budget', () {
+      final transactions = [
+        _tx(id: '1', date: DateTime(2026, 7, 1), amount: 1200, category: 'cat_food'),
+      ];
+      final budgets = [_budget('cat_food', 1000)];
+
+      final summary = SummaryCalculator.budgetForMonth(transactions, budgets, month);
+
+      expect(summary.remaining, -200);
+      expect(summary.spentRatio(), 1.2);
+    });
+
+    test('handles categories without a budget', () {
+      final transactions = [
+        _tx(id: '1', date: DateTime(2026, 7, 1), amount: 100, category: 'cat_food'),
+      ];
+
+      final summary = SummaryCalculator.budgetForMonth(transactions, const [], month);
+
+      expect(summary.totalBudget, 0);
+      expect(summary.spentRatio(), 0);
+      expect(summary.remaining, -100);
     });
   });
 

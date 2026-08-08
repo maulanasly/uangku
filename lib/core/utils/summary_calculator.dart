@@ -1,43 +1,72 @@
 import '../../data/database/database.dart';
-import '../models/transaction_type.dart';
 
 class MonthlySummary {
-  final double income;
-  final double expense;
-  final double balance;
+  final double totalSpent;
   final Map<String, double> categoryBreakdown;
 
   const MonthlySummary({
-    required this.income,
-    required this.expense,
-    required this.balance,
+    required this.totalSpent,
     required this.categoryBreakdown,
   });
 }
 
+class BudgetSummary {
+  final double totalSpent;
+  final double totalBudget;
+  final double remaining;
+  final Map<String, double> categorySpent;
+  final Map<String, double> categoryBudget;
+
+  const BudgetSummary({
+    required this.totalSpent,
+    required this.totalBudget,
+    required this.remaining,
+    required this.categorySpent,
+    required this.categoryBudget,
+  });
+
+  double spentRatio() {
+    if (totalBudget <= 0) return 0;
+    return totalSpent / totalBudget;
+  }
+}
+
 class SummaryCalculator {
   static MonthlySummary forMonth(List<TransactionEntity> transactions, DateTime month) {
-    double income = 0;
-    double expense = 0;
+    double totalSpent = 0;
     final Map<String, double> breakdown = {};
 
     for (final t in transactions) {
       if (!isSameMonth(t.date, month)) {
         continue;
       }
-      if (t.type == TransactionType.income) {
-        income += t.amount;
-      } else {
-        expense += t.amount;
-        breakdown.update(t.category, (v) => v + t.amount, ifAbsent: () => t.amount);
-      }
+      totalSpent += t.amount;
+      breakdown.update(t.category, (v) => v + t.amount, ifAbsent: () => t.amount);
     }
 
     return MonthlySummary(
-      income: income,
-      expense: expense,
-      balance: income - expense,
+      totalSpent: totalSpent,
       categoryBreakdown: breakdown,
+    );
+  }
+
+  static BudgetSummary budgetForMonth(
+    List<TransactionEntity> transactions,
+    List<BudgetEntity> budgets,
+    DateTime month,
+  ) {
+    final monthly = forMonth(transactions, month);
+    final Map<String, double> categoryBudget = {
+      for (final b in budgets) b.categoryId: b.monthlyLimit,
+    };
+    final totalBudget = categoryBudget.values.fold<double>(0, (a, b) => a + b);
+
+    return BudgetSummary(
+      totalSpent: monthly.totalSpent,
+      totalBudget: totalBudget,
+      remaining: totalBudget - monthly.totalSpent,
+      categorySpent: monthly.categoryBreakdown,
+      categoryBudget: categoryBudget,
     );
   }
 

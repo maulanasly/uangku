@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../core/models/transaction_type.dart';
 import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 import 'receipt_draft.dart';
@@ -304,26 +303,6 @@ class _ReviewTransactionBottomSheetState
                               setState(
                                   () => _draft = _draft.copyWith(category: value));
                             }
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        SegmentedButton<TransactionType>(
-                          segments: const [
-                            ButtonSegment(
-                              value: TransactionType.expense,
-                              label: Text('Expense'),
-                              icon: Icon(Icons.arrow_downward),
-                            ),
-                            ButtonSegment(
-                              value: TransactionType.income,
-                              label: Text('Income'),
-                              icon: Icon(Icons.arrow_upward),
-                            ),
-                          ],
-                          selected: {_draft.type},
-                          onSelectionChanged: (selection) {
-                            setState(
-                                () => _draft = _draft.copyWith(type: selection.first));
                           },
                         ),
                         const SizedBox(height: 12),

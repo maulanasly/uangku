@@ -141,8 +141,8 @@ class ExportService {
       if (date == null || amount == null) {
         continue;
       }
-      final typeName = row[3].toString().toLowerCase();
-      final type = typeName == 'income' ? TransactionType.income : TransactionType.expense;
+      // Income is no longer supported; all imported rows become expenses.
+      const type = TransactionType.expense;
       final category = resolveCategory(row[2].toString());
       if (category == null) {
         continue;
