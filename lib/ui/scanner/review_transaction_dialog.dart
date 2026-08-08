@@ -231,7 +231,8 @@ class _ReviewTransactionBottomSheetState
                           controller: _amountController,
                           decoration: InputDecoration(
                             labelText: 'Amount',
-                            prefixText: '\$ ',
+                            prefixText:
+                                '${ref.watch(currencySymbolProvider).valueOrNull ?? '\$'} ',
                             border: const OutlineInputBorder(),
                             suffixIcon: _draft.items.isNotEmpty
                                 ? IconButton(
