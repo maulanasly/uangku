@@ -171,67 +171,6 @@ class _ReceiptCollectionScreenState
     );
   }
 
-  Widget _buildStackCard(TransactionEntity t, NumberFormat format) {
-    final isExpense = t.type == TransactionType.expense;
-    final file = t.receiptImagePath != null ? File(t.receiptImagePath!) : null;
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 24),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (file != null && file.existsSync())
-            SizedBox(
-              width: double.infinity,
-              height: 280,
-              child: Image.file(file, fit: BoxFit.cover),
-            )
-          else
-            Container(
-              width: double.infinity,
-              height: 280,
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child:
-                  const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-            ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(t.merchant,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, fontSize: 15)),
-                      const SizedBox(height: 4),
-                      Text(
-                        DateFormat.yMMMd().format(t.date),
-                        style: const TextStyle(
-                            fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '${isExpense ? "-" : "+"}${format.format(t.amount)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                    color: isExpense ? Colors.red : Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildCardStackCard(TransactionEntity t, NumberFormat format) {
     final isExpense = t.type == TransactionType.expense;
     final file = t.receiptImagePath != null ? File(t.receiptImagePath!) : null;

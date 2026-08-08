@@ -31,6 +31,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final GeminiService _geminiService = GeminiService();
   final OcrSpaceService _ocrSpaceService = OcrSpaceService();
   bool _isProcessing = false;
+  Uint8List? _processingImageBytes;
 
   Future<({String path, Uint8List bytes})> _prepareImage(XFile image) async {
     var bytes = await image.readAsBytes();
@@ -41,7 +42,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       quality: 80,
       format: CompressFormat.jpeg,
     );
-    bytes = compressed ?? bytes;
+    bytes = compressed;
 
     // Write JPEG bytes to a temp file so ML Kit can read from path.
     final tempDir = await getTemporaryDirectory();
@@ -60,10 +61,16 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
     setState(() {
       _isProcessing = true;
+      _processingImageBytes = null;
     });
 
     try {
       final prepared = await _prepareImage(image);
+
+      // Show captured image behind the processing state.
+      if (mounted) {
+        setState(() => _processingImageBytes = prepared.bytes);
+      }
 
       // Save a permanent copy of the receipt image.
       final imagePath = await saveReceiptImage(prepared.bytes);
@@ -163,12 +170,28 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
       appBar: AppBar(title: const Text('Scan Receipt')),
       body: Center(
         child: _isProcessing
-            ? const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+            ? Stack(
+                fit: StackFit.expand,
                 children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Analyzing Receipt...'),
+                  if (_processingImageBytes != null)
+                    Image.memory(
+                      _processingImageBytes!,
+                      fit: BoxFit.cover,
+                      color: Colors.black.withValues(alpha: 0.4),
+                      colorBlendMode: BlendMode.darken,
+                    ),
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _processingImageBytes != null
+                            ? 'Analyzing Receipt...'
+                            : 'Loading image...',
+                      ),
+                    ],
+                  ),
                 ],
               )
             : Column(
