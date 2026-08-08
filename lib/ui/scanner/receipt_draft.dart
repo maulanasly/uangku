@@ -60,12 +60,12 @@ class ReceiptDraft {
       type: TransactionType.expense,
       note: '',
       items: [
-        for (int i = 0; i < data.items.length; i++)
+        for (final item in data.items)
           ReceiptItemDraft(
-            id: 'item_$i',
-            name: data.items[i].name,
-            quantity: data.items[i].quantity,
-            total: data.items[i].total,
+            id: const Uuid().v4(),
+            name: item.name,
+            quantity: item.quantity,
+            total: item.total,
           ),
       ],
     );

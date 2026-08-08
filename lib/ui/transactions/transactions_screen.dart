@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/models/transaction_query.dart';
 import '../../core/models/transaction_type.dart';
+import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 
 class TransactionsScreen extends ConsumerStatefulWidget {
@@ -188,8 +189,10 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                   itemBuilder: (context, index) {
                     final t = transactions[index];
                     final isExpense = t.type == TransactionType.expense;
-                    return ListTile(
-                      onTap: () => context.push('/add_transaction', extra: t),
+                    final itemsAsync =
+                        ref.watch(transactionItemsFamily(t.id));
+                    return ExpansionTile(
+                      onExpansionChanged: (expanded) {},
                       leading: CircleAvatar(
                         backgroundColor: isExpense
                             ? Colors.red.withValues(alpha: 0.2)
@@ -210,6 +213,16 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      children: [
+                        itemsAsync.when(
+                          data: (items) => _buildItemDetails(items, currencyFormat),
+                          loading: () => const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                          ),
+                          error: (_, __) => const SizedBox.shrink(),
+                        ),
+                      ],
                     );
                   },
                 );
@@ -218,6 +231,72 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
               error: (e, st) => Center(child: Text('Error: $e')),
             ),
           ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemDetails(
+    List<TransactionItemEntity> items,
+    NumberFormat currencyFormat,
+  ) {
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Text('No line items', style: TextStyle(color: Colors.grey)),
+      );
+    }
+    final total = items.fold<double>(0, (s, i) => s + i.total);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          for (final item in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Text(item.name, style: const TextStyle(fontSize: 13)),
+                  ),
+                  SizedBox(
+                    width: 56,
+                    child: Text(
+                      item.quantity == item.quantity.truncateToDouble()
+                          ? '${item.quantity.toInt()}x'
+                          : '${item.quantity}x',
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      currencyFormat.format(item.total),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const Divider(),
+          Row(
+            children: [
+              const Spacer(),
+              SizedBox(
+                width: 80,
+                child: Text(
+                  currencyFormat.format(total),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                ),
+              ),
+            ],
           ),
         ],
       ),

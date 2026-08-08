@@ -237,7 +237,17 @@ class DashboardScreen extends ConsumerWidget {
                             ),
                           ),
                           title: Text(t.merchant),
-                          subtitle: Text(DateFormat.yMMMd().format(t.date)),
+                          subtitle: FutureBuilder<List<TransactionItemEntity>>(
+                            future: ref.read(transactionRepositoryProvider).watchItemsFor(t.id).first,
+                            builder: (context, snapshot) {
+                              final itemCount = snapshot.data?.length ?? 0;
+                              return Text(
+                                itemCount > 0
+                                    ? '${DateFormat.yMMMd().format(t.date)} · $itemCount items'
+                                    : DateFormat.yMMMd().format(t.date),
+                              );
+                            },
+                          ),
                           trailing: Text(
                             '${isExpense ? "-" : "+"}${currencyFormat.format(t.amount)}',
                             style: TextStyle(

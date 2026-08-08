@@ -43,6 +43,14 @@ final selectedMonthProvider = StateProvider<DateTime>((ref) {
 final transactionQueryProvider =
     StateProvider<TransactionQuery>((ref) => const TransactionQuery());
 
+final transactionItemsFamily =
+    FutureProvider.family<List<TransactionItemEntity>, String>(
+  (ref, id) async {
+    final repo = ref.watch(transactionRepositoryProvider);
+    return repo.watchItemsFor(id).first;
+  },
+);
+
 final filteredTransactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
   final query = ref.watch(transactionQueryProvider);
   final repo = ref.watch(transactionRepositoryProvider);

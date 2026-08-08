@@ -2,6 +2,7 @@ import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../core/models/transaction_type.dart';
 import '../../data/database/database.dart';
@@ -89,7 +90,7 @@ class _ReviewTransactionDialogState
         items: [
           ..._draft.items,
           ReceiptItemDraft(
-            id: 'item_${_draft.items.length}',
+            id: const Uuid().v4(),
             name: '',
             total: 0,
           ),
