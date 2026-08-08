@@ -259,58 +259,65 @@ class _AnalyticsCategoryBars extends StatelessWidget {
     final fraction = total > 0 ? amount / total : 0.0;
     final percent = (fraction * 100).toStringAsFixed(0);
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final maxBarWidth = constraints.maxWidth - 168;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Row(
-            children: [
-              Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 100,
-                child: Text(
-                  label,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                height: 18,
-                width: maxBarWidth * fraction,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              const Spacer(),
-              SizedBox(
-                width: 72,
-                child: Text(
-                  currencyFormat.format(amount),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              ),
-              const SizedBox(width: 4),
-              SizedBox(
-                width: 36,
-                child: Text(
-                  '$percent%',
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 11, color: Colors.grey),
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
-        );
-      },
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: fraction.clamp(0.0, 1.0),
+                heightFactor: 1,
+                child: Container(
+                  height: 18,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.7),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 72,
+            child: Text(
+              currencyFormat.format(amount),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 4),
+          SizedBox(
+            width: 36,
+            child: Text(
+              '$percent%',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 11, color: Colors.grey),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
