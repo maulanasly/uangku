@@ -234,6 +234,10 @@ class DashboardScreen extends ConsumerWidget {
                         ),
                         onDismissed: (direction) {
                           final repo = ref.read(transactionRepositoryProvider);
+                          final items = ref
+                                  .read(transactionItemsFamily(t.id))
+                                  .valueOrNull ??
+                              const <TransactionItemEntity>[];
                           repo.deleteTransaction(t.id);
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -242,7 +246,14 @@ class DashboardScreen extends ConsumerWidget {
                               action: SnackBarAction(
                                 label: 'Undo',
                                 onPressed: () {
-                                  repo.addTransaction(t);
+                                  if (items.isEmpty) {
+                                    repo.addTransaction(t);
+                                  } else {
+                                    repo.addTransactionWithItems(
+                                      t,
+                                      [for (final i in items) i.toCompanion(true)],
+                                    );
+                                  }
                                 },
                               ),
                             ),

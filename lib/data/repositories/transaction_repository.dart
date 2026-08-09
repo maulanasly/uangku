@@ -79,6 +79,12 @@ class TransactionRepository {
         .watch();
   }
 
+  Future<List<TransactionItemEntity>> getAllItems() {
+    return (_db.select(_db.transactionItems)
+          ..orderBy([(t) => OrderingTerm.asc(t.position)]))
+        .get();
+  }
+
   Future<void> updateTransaction(TransactionEntity transaction) {
     return _db.update(_db.transactions).replace(transaction);
   }

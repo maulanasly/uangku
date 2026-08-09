@@ -7,6 +7,7 @@ import '../../core/ui/add_expense_sheet.dart';
 import '../../core/ui/empty_state.dart';
 import '../../core/utils/analytics_calculator.dart';
 import '../../core/utils/money_format.dart';
+import '../../core/utils/summary_calculator.dart';
 import '../../providers/transaction_provider.dart';
 import '../../data/database/database.dart';
 
@@ -17,6 +18,7 @@ class AnalyticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final transactionsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
+    final budgetsAsync = ref.watch(budgetsProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analytics')),
@@ -46,6 +48,13 @@ class AnalyticsScreen extends ConsumerWidget {
 
           final data = AnalyticsCalculator.compute(transactions);
           final categories = categoriesAsync.valueOrNull ?? [];
+          final budgets = budgetsAsync.valueOrNull ?? [];
+          final now = DateTime.now();
+          final budgetSummary = SummaryCalculator.budgetForMonth(
+            transactions,
+            budgets,
+            DateTime(now.year, now.month),
+          );
           String categoryName(String id) {
             return categories.firstWhere(
               (c) => c.id == id,
@@ -164,6 +173,12 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              _BudgetVsSpentCard(
+                summary: budgetSummary,
+                categoryName: categoryName,
+                currencyFormat: currencyFormat,
+              ),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -177,12 +192,19 @@ class AnalyticsScreen extends ConsumerWidget {
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: Center(child: Text('No expenses in the last 6 months')),
                         )
-                      else
+                      else ...[
+                        _CategoryDonutChart(
+                          spending: data.categorySpending,
+                          categoryName: categoryName,
+                          currencyFormat: currencyFormat,
+                        ),
+                        const SizedBox(height: 16),
                         _AnalyticsCategoryBars(
                           spending: data.categorySpending,
                           categoryName: categoryName,
                           currencyFormat: currencyFormat,
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -193,6 +215,265 @@ class AnalyticsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, st) => Center(child: Text('Error: $e')),
+      ),
+    );
+  }
+}
+
+class _BudgetVsSpentCard extends StatelessWidget {
+  final BudgetSummary summary;
+  final String Function(String) categoryName;
+  final NumberFormat currencyFormat;
+
+  const _BudgetVsSpentCard({
+    required this.summary,
+    required this.categoryName,
+    required this.currencyFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (summary.totalBudget <= 0) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Budget vs Spent',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Set monthly budgets in Settings > Budgets',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final budgetedCategories = summary.categoryBudget.keys.toList()
+      ..sort(
+        (a, b) =>
+            (summary.categorySpent[b] ?? 0).compareTo(summary.categorySpent[a] ?? 0),
+      );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Budget vs Spent',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 2),
+            const Text(
+              'This month',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 12),
+            for (var i = 0; i < budgetedCategories.length; i++) ...[
+              if (i > 0) const SizedBox(height: 10),
+              _BudgetVsRow(
+                label: categoryName(budgetedCategories[i]),
+                spent: summary.categorySpent[budgetedCategories[i]] ?? 0,
+                budget: summary.categoryBudget[budgetedCategories[i]]!,
+                currencyFormat: currencyFormat,
+              ),
+            ],
+            const SizedBox(height: 12),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  const Text('Total', style: TextStyle(fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  Text(
+                    '${currencyFormat.format(summary.totalSpent)} of ${currencyFormat.format(summary.totalBudget)}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    summary.remaining >= 0
+                        ? '${currencyFormat.format(summary.remaining)} left'
+                        : '${currencyFormat.format(-summary.remaining)} over',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: summary.remaining >= 0
+                          ? Colors.green.shade700
+                          : Colors.red.shade700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BudgetVsRow extends StatelessWidget {
+  final String label;
+  final double spent;
+  final double budget;
+  final NumberFormat currencyFormat;
+
+  const _BudgetVsRow({
+    required this.label,
+    required this.spent,
+    required this.budget,
+    required this.currencyFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final over = spent > budget;
+    final ratio = budget > 0 ? spent / budget : 0.0;
+    final color = over ? Colors.red.shade400 : Theme.of(context).colorScheme.primary;
+
+    return Column(
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${currencyFormat.format(spent)} / ${currencyFormat.format(budget)}',
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: ratio.clamp(0.0, 1.0),
+            minHeight: 8,
+            backgroundColor: color.withValues(alpha: 0.15),
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+        if (over) ...[
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              'Over by ${currencyFormat.format(spent - budget)}',
+              style: const TextStyle(fontSize: 11, color: Colors.red),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CategoryDonutChart extends StatefulWidget {
+  final Map<String, double> spending;
+  final String Function(String) categoryName;
+  final NumberFormat currencyFormat;
+
+  const _CategoryDonutChart({
+    required this.spending,
+    required this.categoryName,
+    required this.currencyFormat,
+  });
+
+  @override
+  State<_CategoryDonutChart> createState() => _CategoryDonutChartState();
+}
+
+class _CategoryDonutChartState extends State<_CategoryDonutChart> {
+  int? _activeIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final sorted = widget.spending.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final total = widget.spending.values.fold<double>(0, (a, b) => a + b);
+
+    final active = _activeIndex != null && _activeIndex! < sorted.length
+        ? sorted[_activeIndex!]
+        : null;
+    final centerTitle = active == null
+        ? 'Total'
+        : widget.categoryName(active.key);
+    final centerValue = active == null
+        ? widget.currencyFormat.format(total)
+        : widget.currencyFormat.format(active.value);
+
+    return SizedBox(
+      height: 220,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          PieChart(
+            PieChartData(
+              sectionsSpace: 2,
+              centerSpaceRadius: 50,
+              sections: [
+                for (var i = 0; i < sorted.length; i++)
+                  PieChartSectionData(
+                    value: sorted[i].value,
+                    color: _AnalyticsCategoryBars._palette[i % _AnalyticsCategoryBars._palette.length],
+                    radius: 72,
+                    title: total > 0
+                        ? '${((sorted[i].value / total) * 100).toStringAsFixed(0)}%'
+                        : '0%',
+                    titleStyle: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+              ],
+              pieTouchData: PieTouchData(
+                touchCallback: (FlTouchEvent event, PieTouchResponse? response) {
+                  if (!event.isInterestedForInteractions ||
+                      response?.touchedSection == null) {
+                    return;
+                  }
+                  setState(() {
+                    _activeIndex = response!.touchedSection!.touchedSectionIndex;
+                  });
+                },
+              ),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                centerTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                centerValue,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
