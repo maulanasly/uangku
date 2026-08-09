@@ -240,6 +240,103 @@ void main() {
       expect(items.firstWhere((i) => i.id == '5-1').weight, 0.5);
       expect(items.firstWhere((i) => i.id == '5-2').weight, isNull);
     });
+
+    test('re-adding a transaction with its items after delete restores them', () async {
+      final tx = TransactionsCompanion.insert(
+        id: '6',
+        date: DateTime(2026, 7, 6),
+        amount: 13.5,
+        category: 'cat_food',
+        merchant: 'Co-op',
+        note: '',
+        type: TransactionType.expense,
+      );
+      await repo.addTransactionWithItems(
+        tx,
+        [
+          TransactionItemsCompanion.insert(
+            id: '6-0',
+            transactionId: '6',
+            name: 'Milk',
+            quantity: const Value(2),
+            unitPrice: const Value(4.5),
+            total: 9,
+          ),
+          TransactionItemsCompanion.insert(
+            id: '6-1',
+            transactionId: '6',
+            name: 'Bread',
+            quantity: const Value(1),
+            weight: const Value(0.5),
+            total: 4.5,
+          ),
+        ],
+      );
+
+      final savedTx = (await repo.watchAllTransactions().first)
+          .firstWhere((t) => t.id == '6');
+      final savedItems = await repo.watchItemsFor('6').first;
+
+      await repo.deleteTransaction('6');
+      expect(await repo.watchItemsFor('6').first, isEmpty);
+
+      await repo.addTransactionWithItems(
+        savedTx,
+        [for (final i in savedItems) i.toCompanion(true)],
+      );
+
+      final restored = await repo.watchItemsFor('6').first;
+      expect(restored.length, 2);
+      expect(restored.map((i) => i.name).toSet(), {'Milk', 'Bread'});
+      expect(restored.firstWhere((i) => i.name == 'Milk').unitPrice, 4.5);
+      expect(restored.firstWhere((i) => i.name == 'Bread').weight, 0.5);
+    });
+
+    test('getAllItems returns items across transactions', () async {
+      await repo.addTransactionWithItems(
+        TransactionsCompanion.insert(
+          id: '7',
+          date: DateTime(2026, 7, 7),
+          amount: 9,
+          category: 'cat_food',
+          merchant: 'Co-op',
+          note: '',
+          type: TransactionType.expense,
+        ),
+        [
+          TransactionItemsCompanion.insert(
+            id: '7-0',
+            transactionId: '7',
+            name: 'Milk',
+            quantity: const Value(2),
+            total: 9,
+          ),
+        ],
+      );
+      await repo.addTransactionWithItems(
+        TransactionsCompanion.insert(
+          id: '8',
+          date: DateTime(2026, 7, 8),
+          amount: 4.5,
+          category: 'cat_food',
+          merchant: 'Co-op',
+          note: '',
+          type: TransactionType.expense,
+        ),
+        [
+          TransactionItemsCompanion.insert(
+            id: '8-0',
+            transactionId: '8',
+            name: 'Bread',
+            total: 4.5,
+          ),
+        ],
+      );
+
+      final allItems = await repo.getAllItems();
+      expect(allItems.length, 2);
+      expect(allItems.map((i) => i.transactionId).toSet(), {'7', '8'});
+    });
   });
 
   group('TransactionRepository budgets', () {

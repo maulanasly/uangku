@@ -9,10 +9,10 @@ A personal money tracker built with Flutter. Track expenses against per-category
 - **Transactions** — search, filter, and sort your transaction history, with a quick-add button matching the dashboard
 - **Add Transaction** — item-based manual expense entry (category first, then one or more line items with optional weight, quantity, unit price, and total) or receipt scanning
 - **Receipt Scanner** — on-device OCR that extracts individual line items (name, quantity, price) alongside merchant, total, and date. Scanned data is editable in a review dialog before saving.
-- **Analytics** — monthly spending trends, category spending
-- **Settings** — manage categories with visual icon picker, set per-category budgets, export/import CSV, choose a currency symbol via visual selector, reset all transaction data
+- **Analytics** — 6-month spending trend, a category donut chart (tap a slice to highlight it), a "budget vs. spent" comparison for the current month, and a full category breakdown
+- **Settings** — manage categories with visual icon picker, set per-category budgets, export/import CSV (line items included, so backups round-trip completely), choose a currency symbol via visual selector, reset all transaction data
 
-The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v4; a `budgets` table holds per-category monthly limits; items may carry an optional `weight`). Money values are displayed with compact notation — `1.2K`/`1.23M` (English suffixes) for amounts of 1,000 and up (`lib/core/utils/money_format.dart`); editable inputs always use plain numbers.
+The UI uses an Airy Blue Material 3 theme (sky blue `#4F8CFF` / fresh green / amber accent on a cool mist surface). See `lib/core/theme/app_theme.dart`. Receipt line items are stored in a dedicated `transaction_items` table (schema v4; a `budgets` table holds per-category monthly limits; items may carry an optional `weight`). Deleting a transaction cascades to its items, but the dashboard's undo restores both the transaction and its line items. Money values are displayed with compact notation — `1.2K`/`1.23M` (English suffixes) for amounts of 1,000 and up (`lib/core/utils/money_format.dart`); editable inputs always use plain numbers.
 
 ## Getting Started
 

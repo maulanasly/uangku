@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:csv/csv.dart';
@@ -23,47 +24,25 @@ class ExportService {
   ExportService(this._ref);
 
   Future<void> exportTransactionsToCsv() async {
-    // 1. Fetch transactions directly (not using stream for a one-off export)
-    // Actually, our repository only exposes a stream for all transactions.
-    // Let's just watch the stream and take the first emission, or we can use the provider.
-    
     // We'll use the async value from the transactionsProvider
     final asyncTransactions = _ref.read(transactionsProvider);
-    
-    // We must ensure the data is loaded. If we are triggering this from UI, 
+
+    // We must ensure the data is loaded. If we are triggering this from UI,
     // it's likely already loaded.
     final transactions = asyncTransactions.valueOrNull;
     if (transactions == null || transactions.isEmpty) {
       throw Exception('No transactions to export');
     }
 
-    // 2. Map to 2D Array
-    List<List<dynamic>> rows = [];
-    
-    // Add Header
-    rows.add([
-      'Date',
-      'Merchant',
-      'Category',
-      'Type',
-      'Amount',
-      'Note',
-    ]);
-
-    // Add Data
-    for (final t in transactions) {
-      rows.add([
-        t.date.toIso8601String(),
-        t.merchant,
-        t.category,
-        t.type.name,
-        t.amount,
-        t.note,
-      ]);
+    final repo = _ref.read(transactionRepositoryProvider);
+    final allItems = await repo.getAllItems();
+    final itemsByTx = <String, List<TransactionItemEntity>>{};
+    for (final item in allItems) {
+      itemsByTx.putIfAbsent(item.transactionId, () => []).add(item);
     }
 
-    // 3. Convert to CSV string
-    String csvData = Csv().encode(rows);
+    // Convert to CSV string
+    final csvData = Csv().encode(buildCsvRows(transactions, itemsByTx));
 
     // 4. Share / Export
     final filename = 'uangku_transactions_${DateTime.now().millisecondsSinceEpoch}.csv';
@@ -147,17 +126,82 @@ class ExportService {
       if (category == null) {
         continue;
       }
-      await repo.addTransaction(
-        TransactionsCompanion.insert(
-          id: 'import_${DateTime.now().microsecondsSinceEpoch}_$i',
-          date: date,
-          amount: amount,
-          category: category,
-          merchant: row[1].toString(),
-          note: row[5].toString(),
-          type: type,
-        ),
+      final txId = 'import_${DateTime.now().microsecondsSinceEpoch}_$i';
+      final transaction = TransactionsCompanion.insert(
+        id: txId,
+        date: date,
+        amount: amount,
+        category: category,
+        merchant: row[1].toString(),
+        note: row[5].toString(),
+        type: type,
       );
+
+      final itemRows = <TransactionItemsCompanion>[];
+      if (row.length > 6 && row[6].toString().isNotEmpty) {
+        final decoded = jsonDecode(row[6].toString());
+        if (decoded is List) {
+          var position = 0;
+          for (final rawItem in decoded) {
+            if (rawItem is! Map) {
+              continue;
+            }
+            final item = rawItem.cast<String, dynamic>();
+            itemRows.add(
+              TransactionItemsCompanion.insert(
+                id: '${txId}_item_$position',
+                transactionId: txId,
+                name: item['name']?.toString() ?? '',
+                quantity: Value((item['quantity'] as num?)?.toDouble() ?? 1),
+                unitPrice: Value((item['unitPrice'] as num?)?.toDouble()),
+                weight: Value((item['weight'] as num?)?.toDouble()),
+                total: (item['total'] as num?)?.toDouble() ?? 0,
+                position: Value(position),
+              ),
+            );
+            position++;
+          }
+        }
+      }
+
+      if (itemRows.isEmpty) {
+        await repo.addTransaction(transaction);
+      } else {
+        await repo.addTransactionWithItems(transaction, itemRows);
+      }
     }
   }
+}
+
+List<List<dynamic>> buildCsvRows(
+  List<TransactionEntity> transactions,
+  Map<String, List<TransactionItemEntity>> itemsByTx,
+) {
+  final rows = <List<dynamic>>[
+    const ['Date', 'Merchant', 'Category', 'Type', 'Amount', 'Note', 'Items'],
+  ];
+
+  for (final t in transactions) {
+    final items = itemsByTx[t.id] ?? const <TransactionItemEntity>[];
+    rows.add([
+      t.date.toIso8601String(),
+      t.merchant,
+      t.category,
+      t.type.name,
+      t.amount,
+      t.note,
+      jsonEncode([
+        for (final i in items)
+          {
+            'name': i.name,
+            'quantity': i.quantity,
+            'unitPrice': i.unitPrice,
+            'weight': i.weight,
+            'total': i.total,
+          },
+      ]),
+    ]);
+  }
+
+  return rows;
 }
