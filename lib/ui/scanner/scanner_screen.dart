@@ -1,17 +1,13 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:path_provider/path_provider.dart';
 
-import '../../core/services/gemini_service.dart';
-import '../../core/services/ocr_cloud_service.dart';
-import '../../core/services/ocr_service.dart';
+import '../../core/services/receipt_ocr_service.dart';
 import '../../core/services/preferences_service.dart';
+import '../../core/utils/ocr_image_prep.dart';
 import '../../core/utils/receipt_parser.dart';
 import '../../core/utils/receipt_storage.dart';
 import '../../providers/database_provider.dart';
@@ -28,31 +24,9 @@ class ScannerScreen extends ConsumerStatefulWidget {
 
 class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   final ImagePicker _picker = ImagePicker();
-  final GeminiService _geminiService = GeminiService();
-  final OcrSpaceService _ocrSpaceService = OcrSpaceService();
+  final ReceiptOcrService _ocrService = ReceiptOcrService();
   bool _isProcessing = false;
   Uint8List? _processingImageBytes;
-
-  Future<({String path, Uint8List bytes})> _prepareImage(XFile image) async {
-    var bytes = await image.readAsBytes();
-
-    // Convert HEIC to JPEG (most OCR backends don't support HEIC).
-    final compressed = await FlutterImageCompress.compressWithList(
-      bytes,
-      quality: 80,
-      format: CompressFormat.jpeg,
-    );
-    bytes = compressed;
-
-    // Write JPEG bytes to a temp file so ML Kit can read from path.
-    final tempDir = await getTemporaryDirectory();
-    final tempFile = File(
-      '${tempDir.path}/receipt_${DateTime.now().millisecondsSinceEpoch}.jpg',
-    );
-    await tempFile.writeAsBytes(bytes);
-
-    return (path: tempFile.path, bytes: bytes);
-  }
 
   Future<void> _processImage(ImageSource source) async {
     final XFile? image =
@@ -65,7 +39,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     });
 
     try {
-      final prepared = await _prepareImage(image);
+      final prepared = await prepareImageForOcr(image);
 
       // Show captured image behind the processing state.
       if (mounted) {
@@ -99,33 +73,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
     Uint8List bytes,
   ) async {
     final mode = await ref.read(ocrModeProvider.future);
-
-    if (mode == 'gemini') {
-      final data = await _geminiService.parseReceiptFromBytes(
-        bytes,
-        mimeType: 'image/jpeg',
-      );
-      return (data: data, cloudProvider: 'gemini');
-    }
-    if (mode == 'ocrspace') {
-      final data = await _ocrSpaceService.parseReceiptFromBytes(
-        bytes,
-        mimeType: 'image/jpeg',
-      );
-      return (data: data, cloudProvider: 'ocrspace');
-    }
-
-    // Auto mode: try local OCR first, fallback to OCR.space.
-    try {
-      final text = await ocrService.extractText(path, bytes);
-      return (data: ReceiptParser.parseLines(text.split('\n')), cloudProvider: null);
-    } catch (_) {
-      final data = await _ocrSpaceService.parseReceiptFromBytes(
-        bytes,
-        mimeType: 'image/jpeg',
-      );
-      return (data: data, cloudProvider: 'ocrspace');
-    }
+    return _ocrService.parseImage(path, bytes, mode: mode);
   }
 
   Future<void> _showReviewDialog(
@@ -166,143 +114,251 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   Widget build(BuildContext context) {
     final modeAsync = ref.watch(ocrModeProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Scan Receipt')),
-      body: Center(
-        child: _isProcessing
-            ? Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (_processingImageBytes != null)
-                    Image.memory(
-                      _processingImageBytes!,
-                      fit: BoxFit.cover,
-                      color: Colors.black.withValues(alpha: 0.4),
-                      colorBlendMode: BlendMode.darken,
+    return PopScope(
+      canPop: !_isProcessing,
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Scan Receipt')),
+        body: Center(
+          child: _isProcessing
+              ? _ScannerLoadingOverlay(imageBytes: _processingImageBytes)
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 32),
+                      child: modeAsync.when(
+                        data: (mode) => SegmentedButton<String>(
+                          segments: const [
+                            ButtonSegment(
+                              value: 'auto',
+                              label: Text('Auto'),
+                              icon: Icon(Icons.phone_android),
+                            ),
+                            ButtonSegment(
+                              value: 'gemini',
+                              label: Text('Gemini'),
+                              icon: Icon(Icons.auto_awesome),
+                            ),
+                            ButtonSegment(
+                              value: 'ocrspace',
+                              label: Text('Cloud'),
+                              icon: Icon(Icons.cloud),
+                            ),
+                          ],
+                          selected: {mode},
+                          onSelectionChanged: (selection) =>
+                              _toggleMode(selection.first),
+                        ),
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, __) => const SizedBox.shrink(),
+                      ),
                     ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => _processImage(ImageSource.camera),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Column(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 34,
+                                        backgroundColor: Color(0xFF4F8CFF),
+                                        child: Icon(
+                                          Icons.camera_alt,
+                                          size: 32,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text('Camera'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Card(
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                                side: BorderSide(
+                                  color: Theme.of(context).colorScheme.outline,
+                                ),
+                              ),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(20),
+                                onTap: () => _processImage(ImageSource.gallery),
+                                child: const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: Column(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 34,
+                                        backgroundColor: Color(0xFF38C6A0),
+                                        child: Icon(
+                                          Icons.photo_library,
+                                          size: 32,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text('Gallery'),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-screen overlay shown while the receipt is being processed. Stages
+/// advance on a fixed timeline (no real progress callbacks available), with a
+/// scan line sweeping across the captured image.
+class _ScannerLoadingOverlay extends StatefulWidget {
+  const _ScannerLoadingOverlay({required this.imageBytes});
+
+  final Uint8List? imageBytes;
+
+  @override
+  State<_ScannerLoadingOverlay> createState() => _ScannerLoadingOverlayState();
+}
+
+class _ScannerLoadingOverlayState extends State<_ScannerLoadingOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  static const _stageDuration = Duration(milliseconds: 900);
+
+  static const List<({String label, IconData icon})> _stages = [
+    (label: 'Preparing image…', icon: Icons.image_outlined),
+    (label: 'Reading text…', icon: Icons.text_snippet_outlined),
+    (label: 'Detecting items…', icon: Icons.receipt_long_outlined),
+    (label: 'Reconciling totals…', icon: Icons.fact_check_outlined),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: _stageDuration * _stages.length,
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  int get _stageIndex =>
+      (_controller.value * _stages.length).floor().clamp(0, _stages.length - 1);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (widget.imageBytes != null)
+          Image.memory(
+            widget.imageBytes!,
+            fit: BoxFit.cover,
+            color: Colors.black.withValues(alpha: 0.6),
+            colorBlendMode: BlendMode.darken,
+          )
+        else
+          const ColoredBox(color: Color(0xFF1A1C20)),
+        AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) {
+            final y = -0.9 + 1.8 * _controller.value;
+            return Align(
+              alignment: Alignment(0, y),
+              child: FractionallySizedBox(
+                heightFactor: 0.002,
+                widthFactor: 1,
+                child: Container(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.55),
+                ),
+              ),
+            );
+          },
+        ),
+        Center(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final stage = _stages[_stageIndex];
+              return Card(
+                elevation: 6,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 20,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const CircularProgressIndicator(),
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        child: Row(
+                          key: ValueKey(stage.label),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(stage.icon, color: theme.colorScheme.primary),
+                            const SizedBox(width: 12),
+                            Text(
+                              stage.label,
+                              style: theme.textTheme.titleMedium,
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 16),
-                      Text(
-                        _processingImageBytes != null
-                            ? 'Analyzing Receipt...'
-                            : 'Loading image...',
+                      SizedBox(
+                        width: 240,
+                        child: LinearProgressIndicator(
+                          value: _controller.value,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
                     ],
                   ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 32),
-                    child: modeAsync.when(
-                      data: (mode) => SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                            value: 'auto',
-                            label: Text('Auto'),
-                            icon: Icon(Icons.phone_android),
-                          ),
-                          ButtonSegment(
-                            value: 'gemini',
-                            label: Text('Gemini'),
-                            icon: Icon(Icons.auto_awesome),
-                          ),
-                          ButtonSegment(
-                            value: 'ocrspace',
-                            label: Text('Cloud'),
-                            icon: Icon(Icons.cloud),
-                          ),
-                        ],
-                        selected: {mode},
-                        onSelectionChanged: (selection) =>
-                            _toggleMode(selection.first),
-                      ),
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 32),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20),
-                              onTap: () => _processImage(ImageSource.camera),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 24),
-                                child: Column(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 34,
-                                      backgroundColor: Color(0xFF4F8CFF),
-                                      child: Icon(
-                                        Icons.camera_alt,
-                                        size: 32,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text('Camera'),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Card(
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              side: BorderSide(
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                            ),
-                            child: InkWell(
-                              borderRadius: BorderRadius.circular(20),
-                              onTap: () => _processImage(ImageSource.gallery),
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 24),
-                                child: Column(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 34,
-                                      backgroundColor: Color(0xFF38C6A0),
-                                      child: Icon(
-                                        Icons.photo_library,
-                                        size: 32,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text('Gallery'),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-      ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

@@ -6,12 +6,19 @@ import 'connection/connection.dart' as impl;
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Categories, Transactions, TransactionItems, Budgets])
+@DriftDatabase(tables: [
+  Categories,
+  Transactions,
+  TransactionItems,
+  Budgets,
+  ShoppingLists,
+  ShoppingListItems,
+],)
 class AppDatabase extends _$AppDatabase {
   AppDatabase([QueryExecutor? executor]) : super(executor ?? impl.openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -51,6 +58,10 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 4) {
           await m.addColumn(transactionItems, transactionItems.weight);
+        }
+        if (from < 5) {
+          await m.createTable(shoppingLists);
+          await m.createTable(shoppingListItems);
         }
       },
     );

@@ -211,6 +211,43 @@ class _ReviewTransactionBottomSheetState
                           _ocrLabel(),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
+                        if (_draft.warning != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .errorContainer
+                                  .withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _draft.warning!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onErrorContainer,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         TextFormField(
                           controller: _merchantController,

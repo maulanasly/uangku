@@ -1,0 +1,23 @@
+GRIYA
+JL. CIATEUL NO. 23
+BANDUNG
+No. Struk : 887621
+Kasir : 04
+14/08/2026 16:04:22
+================================
+TELUR AYAM 1KG
+2 x 28.000 = 56.000
+BERAS ROJOLELE PREMIUM
+1 x 68.000 = 68.000
+MINYAK GORENG 2L
+3 x 21.500 = 64.500
+GULA PASIR 1KG
+1 x 17.000 = 17.000
+--------------------------------
+Subtotal : 205.500
+Diskon : -3.500
+Total : 202.000
+Tunai : 210.000
+Kembali : 8.000
+================================
+TERIMA KASIH

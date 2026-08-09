@@ -10,6 +10,8 @@ import '../ui/analytics/analytics_screen.dart';
 import '../ui/transactions/add_transaction_screen.dart';
 import '../ui/transactions/transactions_screen.dart';
 import '../ui/receipts/receipt_collection_screen.dart';
+import '../ui/list/shopping_lists_screen.dart';
+import '../ui/list/shopping_list_detail_screen.dart';
 import '../ui/shell/bottom_nav_shell.dart';
 import '../data/database/database.dart';
 
@@ -41,6 +43,14 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/analytics',
               builder: (context, state) => const AnalyticsScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/lists',
+              builder: (context, state) => const ShoppingListsScreen(),
             ),
           ],
         ),
@@ -90,6 +100,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/receipts',
       builder: (context, state) => const ReceiptCollectionScreen(),
+    ),
+    GoRoute(
+      path: '/shopping_list/:id',
+      builder: (context, state) =>
+          ShoppingListDetailScreen(listId: state.pathParameters['id']!),
     ),
   ],
 );

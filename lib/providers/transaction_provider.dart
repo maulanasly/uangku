@@ -68,3 +68,14 @@ final budgetsProvider = StreamProvider<List<BudgetEntity>>((ref) {
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.watchAllBudgets();
 });
+
+final shoppingListsProvider = StreamProvider<List<ShoppingListEntity>>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.watchShoppingLists();
+});
+
+final shoppingListItemsFamily =
+    StreamProvider.family<List<ShoppingListItemEntity>, String>((ref, listId) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.watchShoppingListItems(listId);
+});

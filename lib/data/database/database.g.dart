@@ -1328,6 +1328,697 @@ class BudgetsCompanion extends UpdateCompanion<BudgetEntity> {
   }
 }
 
+class $ShoppingListsTable extends ShoppingLists
+    with TableInfo<$ShoppingListsTable, ShoppingListEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShoppingListsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+      'date', aliasedName, false,
+      type: DriftSqlType.dateTime, requiredDuringInsert: true);
+  static const VerificationMeta _completedMeta =
+      const VerificationMeta('completed');
+  @override
+  late final GeneratedColumn<bool> completed = GeneratedColumn<bool>(
+      'completed', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("completed" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  @override
+  List<GeneratedColumn> get $columns => [id, name, date, completed];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shopping_lists';
+  @override
+  VerificationContext validateIntegrity(Insertable<ShoppingListEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+          _dateMeta, date.isAcceptableOrUnknown(data['date']!, _dateMeta));
+    } else if (isInserting) {
+      context.missing(_dateMeta);
+    }
+    if (data.containsKey('completed')) {
+      context.handle(_completedMeta,
+          completed.isAcceptableOrUnknown(data['completed']!, _completedMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShoppingListEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShoppingListEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      date: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}date'])!,
+      completed: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}completed'])!,
+    );
+  }
+
+  @override
+  $ShoppingListsTable createAlias(String alias) {
+    return $ShoppingListsTable(attachedDatabase, alias);
+  }
+}
+
+class ShoppingListEntity extends DataClass
+    implements Insertable<ShoppingListEntity> {
+  final String id;
+  final String name;
+  final DateTime date;
+  final bool completed;
+  const ShoppingListEntity(
+      {required this.id,
+      required this.name,
+      required this.date,
+      required this.completed});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['name'] = Variable<String>(name);
+    map['date'] = Variable<DateTime>(date);
+    map['completed'] = Variable<bool>(completed);
+    return map;
+  }
+
+  ShoppingListsCompanion toCompanion(bool nullToAbsent) {
+    return ShoppingListsCompanion(
+      id: Value(id),
+      name: Value(name),
+      date: Value(date),
+      completed: Value(completed),
+    );
+  }
+
+  factory ShoppingListEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShoppingListEntity(
+      id: serializer.fromJson<String>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      date: serializer.fromJson<DateTime>(json['date']),
+      completed: serializer.fromJson<bool>(json['completed']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'name': serializer.toJson<String>(name),
+      'date': serializer.toJson<DateTime>(date),
+      'completed': serializer.toJson<bool>(completed),
+    };
+  }
+
+  ShoppingListEntity copyWith(
+          {String? id, String? name, DateTime? date, bool? completed}) =>
+      ShoppingListEntity(
+        id: id ?? this.id,
+        name: name ?? this.name,
+        date: date ?? this.date,
+        completed: completed ?? this.completed,
+      );
+  ShoppingListEntity copyWithCompanion(ShoppingListsCompanion data) {
+    return ShoppingListEntity(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      date: data.date.present ? data.date.value : this.date,
+      completed: data.completed.present ? data.completed.value : this.completed,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingListEntity(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('date: $date, ')
+          ..write('completed: $completed')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, date, completed);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShoppingListEntity &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.date == this.date &&
+          other.completed == this.completed);
+}
+
+class ShoppingListsCompanion extends UpdateCompanion<ShoppingListEntity> {
+  final Value<String> id;
+  final Value<String> name;
+  final Value<DateTime> date;
+  final Value<bool> completed;
+  final Value<int> rowid;
+  const ShoppingListsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.date = const Value.absent(),
+    this.completed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShoppingListsCompanion.insert({
+    required String id,
+    required String name,
+    required DateTime date,
+    this.completed = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        name = Value(name),
+        date = Value(date);
+  static Insertable<ShoppingListEntity> custom({
+    Expression<String>? id,
+    Expression<String>? name,
+    Expression<DateTime>? date,
+    Expression<bool>? completed,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (date != null) 'date': date,
+      if (completed != null) 'completed': completed,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShoppingListsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? name,
+      Value<DateTime>? date,
+      Value<bool>? completed,
+      Value<int>? rowid}) {
+    return ShoppingListsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      date: date ?? this.date,
+      completed: completed ?? this.completed,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
+    }
+    if (completed.present) {
+      map['completed'] = Variable<bool>(completed.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingListsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('date: $date, ')
+          ..write('completed: $completed, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ShoppingListItemsTable extends ShoppingListItems
+    with TableInfo<$ShoppingListItemsTable, ShoppingListItemEntity> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ShoppingListItemsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _listIdMeta = const VerificationMeta('listId');
+  @override
+  late final GeneratedColumn<String> listId = GeneratedColumn<String>(
+      'list_id', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: true,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'REFERENCES shopping_lists (id) ON DELETE CASCADE'));
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _quantityMeta =
+      const VerificationMeta('quantity');
+  @override
+  late final GeneratedColumn<double> quantity = GeneratedColumn<double>(
+      'quantity', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(1));
+  static const VerificationMeta _unitPriceMeta =
+      const VerificationMeta('unitPrice');
+  @override
+  late final GeneratedColumn<double> unitPrice = GeneratedColumn<double>(
+      'unit_price', aliasedName, true,
+      type: DriftSqlType.double, requiredDuringInsert: false);
+  static const VerificationMeta _totalMeta = const VerificationMeta('total');
+  @override
+  late final GeneratedColumn<double> total = GeneratedColumn<double>(
+      'total', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _checkedMeta =
+      const VerificationMeta('checked');
+  @override
+  late final GeneratedColumn<bool> checked = GeneratedColumn<bool>(
+      'checked', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('CHECK ("checked" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _positionMeta =
+      const VerificationMeta('position');
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+      'position', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [id, listId, name, quantity, unitPrice, total, checked, position];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'shopping_list_items';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<ShoppingListItemEntity> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('list_id')) {
+      context.handle(_listIdMeta,
+          listId.isAcceptableOrUnknown(data['list_id']!, _listIdMeta));
+    } else if (isInserting) {
+      context.missing(_listIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('quantity')) {
+      context.handle(_quantityMeta,
+          quantity.isAcceptableOrUnknown(data['quantity']!, _quantityMeta));
+    }
+    if (data.containsKey('unit_price')) {
+      context.handle(_unitPriceMeta,
+          unitPrice.isAcceptableOrUnknown(data['unit_price']!, _unitPriceMeta));
+    }
+    if (data.containsKey('total')) {
+      context.handle(
+          _totalMeta, total.isAcceptableOrUnknown(data['total']!, _totalMeta));
+    }
+    if (data.containsKey('checked')) {
+      context.handle(_checkedMeta,
+          checked.isAcceptableOrUnknown(data['checked']!, _checkedMeta));
+    }
+    if (data.containsKey('position')) {
+      context.handle(_positionMeta,
+          position.isAcceptableOrUnknown(data['position']!, _positionMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ShoppingListItemEntity map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ShoppingListItemEntity(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      listId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}list_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
+      quantity: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}quantity'])!,
+      unitPrice: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}unit_price']),
+      total: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}total'])!,
+      checked: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}checked'])!,
+      position: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}position'])!,
+    );
+  }
+
+  @override
+  $ShoppingListItemsTable createAlias(String alias) {
+    return $ShoppingListItemsTable(attachedDatabase, alias);
+  }
+}
+
+class ShoppingListItemEntity extends DataClass
+    implements Insertable<ShoppingListItemEntity> {
+  final String id;
+  final String listId;
+  final String name;
+  final double quantity;
+  final double? unitPrice;
+  final double total;
+  final bool checked;
+  final int position;
+  const ShoppingListItemEntity(
+      {required this.id,
+      required this.listId,
+      required this.name,
+      required this.quantity,
+      this.unitPrice,
+      required this.total,
+      required this.checked,
+      required this.position});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['list_id'] = Variable<String>(listId);
+    map['name'] = Variable<String>(name);
+    map['quantity'] = Variable<double>(quantity);
+    if (!nullToAbsent || unitPrice != null) {
+      map['unit_price'] = Variable<double>(unitPrice);
+    }
+    map['total'] = Variable<double>(total);
+    map['checked'] = Variable<bool>(checked);
+    map['position'] = Variable<int>(position);
+    return map;
+  }
+
+  ShoppingListItemsCompanion toCompanion(bool nullToAbsent) {
+    return ShoppingListItemsCompanion(
+      id: Value(id),
+      listId: Value(listId),
+      name: Value(name),
+      quantity: Value(quantity),
+      unitPrice: unitPrice == null && nullToAbsent
+          ? const Value.absent()
+          : Value(unitPrice),
+      total: Value(total),
+      checked: Value(checked),
+      position: Value(position),
+    );
+  }
+
+  factory ShoppingListItemEntity.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ShoppingListItemEntity(
+      id: serializer.fromJson<String>(json['id']),
+      listId: serializer.fromJson<String>(json['listId']),
+      name: serializer.fromJson<String>(json['name']),
+      quantity: serializer.fromJson<double>(json['quantity']),
+      unitPrice: serializer.fromJson<double?>(json['unitPrice']),
+      total: serializer.fromJson<double>(json['total']),
+      checked: serializer.fromJson<bool>(json['checked']),
+      position: serializer.fromJson<int>(json['position']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'listId': serializer.toJson<String>(listId),
+      'name': serializer.toJson<String>(name),
+      'quantity': serializer.toJson<double>(quantity),
+      'unitPrice': serializer.toJson<double?>(unitPrice),
+      'total': serializer.toJson<double>(total),
+      'checked': serializer.toJson<bool>(checked),
+      'position': serializer.toJson<int>(position),
+    };
+  }
+
+  ShoppingListItemEntity copyWith(
+          {String? id,
+          String? listId,
+          String? name,
+          double? quantity,
+          Value<double?> unitPrice = const Value.absent(),
+          double? total,
+          bool? checked,
+          int? position}) =>
+      ShoppingListItemEntity(
+        id: id ?? this.id,
+        listId: listId ?? this.listId,
+        name: name ?? this.name,
+        quantity: quantity ?? this.quantity,
+        unitPrice: unitPrice.present ? unitPrice.value : this.unitPrice,
+        total: total ?? this.total,
+        checked: checked ?? this.checked,
+        position: position ?? this.position,
+      );
+  ShoppingListItemEntity copyWithCompanion(ShoppingListItemsCompanion data) {
+    return ShoppingListItemEntity(
+      id: data.id.present ? data.id.value : this.id,
+      listId: data.listId.present ? data.listId.value : this.listId,
+      name: data.name.present ? data.name.value : this.name,
+      quantity: data.quantity.present ? data.quantity.value : this.quantity,
+      unitPrice: data.unitPrice.present ? data.unitPrice.value : this.unitPrice,
+      total: data.total.present ? data.total.value : this.total,
+      checked: data.checked.present ? data.checked.value : this.checked,
+      position: data.position.present ? data.position.value : this.position,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingListItemEntity(')
+          ..write('id: $id, ')
+          ..write('listId: $listId, ')
+          ..write('name: $name, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPrice: $unitPrice, ')
+          ..write('total: $total, ')
+          ..write('checked: $checked, ')
+          ..write('position: $position')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id, listId, name, quantity, unitPrice, total, checked, position);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ShoppingListItemEntity &&
+          other.id == this.id &&
+          other.listId == this.listId &&
+          other.name == this.name &&
+          other.quantity == this.quantity &&
+          other.unitPrice == this.unitPrice &&
+          other.total == this.total &&
+          other.checked == this.checked &&
+          other.position == this.position);
+}
+
+class ShoppingListItemsCompanion
+    extends UpdateCompanion<ShoppingListItemEntity> {
+  final Value<String> id;
+  final Value<String> listId;
+  final Value<String> name;
+  final Value<double> quantity;
+  final Value<double?> unitPrice;
+  final Value<double> total;
+  final Value<bool> checked;
+  final Value<int> position;
+  final Value<int> rowid;
+  const ShoppingListItemsCompanion({
+    this.id = const Value.absent(),
+    this.listId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.quantity = const Value.absent(),
+    this.unitPrice = const Value.absent(),
+    this.total = const Value.absent(),
+    this.checked = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ShoppingListItemsCompanion.insert({
+    required String id,
+    required String listId,
+    required String name,
+    this.quantity = const Value.absent(),
+    this.unitPrice = const Value.absent(),
+    this.total = const Value.absent(),
+    this.checked = const Value.absent(),
+    this.position = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        listId = Value(listId),
+        name = Value(name);
+  static Insertable<ShoppingListItemEntity> custom({
+    Expression<String>? id,
+    Expression<String>? listId,
+    Expression<String>? name,
+    Expression<double>? quantity,
+    Expression<double>? unitPrice,
+    Expression<double>? total,
+    Expression<bool>? checked,
+    Expression<int>? position,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (listId != null) 'list_id': listId,
+      if (name != null) 'name': name,
+      if (quantity != null) 'quantity': quantity,
+      if (unitPrice != null) 'unit_price': unitPrice,
+      if (total != null) 'total': total,
+      if (checked != null) 'checked': checked,
+      if (position != null) 'position': position,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ShoppingListItemsCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? listId,
+      Value<String>? name,
+      Value<double>? quantity,
+      Value<double?>? unitPrice,
+      Value<double>? total,
+      Value<bool>? checked,
+      Value<int>? position,
+      Value<int>? rowid}) {
+    return ShoppingListItemsCompanion(
+      id: id ?? this.id,
+      listId: listId ?? this.listId,
+      name: name ?? this.name,
+      quantity: quantity ?? this.quantity,
+      unitPrice: unitPrice ?? this.unitPrice,
+      total: total ?? this.total,
+      checked: checked ?? this.checked,
+      position: position ?? this.position,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (listId.present) {
+      map['list_id'] = Variable<String>(listId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (quantity.present) {
+      map['quantity'] = Variable<double>(quantity.value);
+    }
+    if (unitPrice.present) {
+      map['unit_price'] = Variable<double>(unitPrice.value);
+    }
+    if (total.present) {
+      map['total'] = Variable<double>(total.value);
+    }
+    if (checked.present) {
+      map['checked'] = Variable<bool>(checked.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ShoppingListItemsCompanion(')
+          ..write('id: $id, ')
+          ..write('listId: $listId, ')
+          ..write('name: $name, ')
+          ..write('quantity: $quantity, ')
+          ..write('unitPrice: $unitPrice, ')
+          ..write('total: $total, ')
+          ..write('checked: $checked, ')
+          ..write('position: $position, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -1336,12 +2027,21 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $TransactionItemsTable transactionItems =
       $TransactionItemsTable(this);
   late final $BudgetsTable budgets = $BudgetsTable(this);
+  late final $ShoppingListsTable shoppingLists = $ShoppingListsTable(this);
+  late final $ShoppingListItemsTable shoppingListItems =
+      $ShoppingListItemsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [categories, transactions, transactionItems, budgets];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+        categories,
+        transactions,
+        transactionItems,
+        budgets,
+        shoppingLists,
+        shoppingListItems
+      ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
         [
@@ -1350,6 +2050,13 @@ abstract class _$AppDatabase extends GeneratedDatabase {
                 limitUpdateKind: UpdateKind.delete),
             result: [
               TableUpdate('transaction_items', kind: UpdateKind.delete),
+            ],
+          ),
+          WritePropagation(
+            on: TableUpdateQuery.onTableName('shopping_lists',
+                limitUpdateKind: UpdateKind.delete),
+            result: [
+              TableUpdate('shopping_list_items', kind: UpdateKind.delete),
             ],
           ),
         ],
@@ -2619,6 +3326,576 @@ typedef $$BudgetsTableProcessedTableManager = ProcessedTableManager<
     (BudgetEntity, $$BudgetsTableReferences),
     BudgetEntity,
     PrefetchHooks Function({bool categoryId})>;
+typedef $$ShoppingListsTableCreateCompanionBuilder = ShoppingListsCompanion
+    Function({
+  required String id,
+  required String name,
+  required DateTime date,
+  Value<bool> completed,
+  Value<int> rowid,
+});
+typedef $$ShoppingListsTableUpdateCompanionBuilder = ShoppingListsCompanion
+    Function({
+  Value<String> id,
+  Value<String> name,
+  Value<DateTime> date,
+  Value<bool> completed,
+  Value<int> rowid,
+});
+
+final class $$ShoppingListsTableReferences extends BaseReferences<_$AppDatabase,
+    $ShoppingListsTable, ShoppingListEntity> {
+  $$ShoppingListsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static MultiTypedResultKey<$ShoppingListItemsTable,
+      List<ShoppingListItemEntity>> _shoppingListItemsRefsTable(
+          _$AppDatabase db) =>
+      MultiTypedResultKey.fromTable(db.shoppingListItems,
+          aliasName: $_aliasNameGenerator(
+              db.shoppingLists.id, db.shoppingListItems.listId));
+
+  $$ShoppingListItemsTableProcessedTableManager get shoppingListItemsRefs {
+    final manager =
+        $$ShoppingListItemsTableTableManager($_db, $_db.shoppingListItems)
+            .filter((f) => f.listId.id.sqlEquals($_itemColumn<String>('id')!));
+
+    final cache =
+        $_typedResult.readTableOrNull(_shoppingListItemsRefsTable($_db));
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: cache));
+  }
+}
+
+class $$ShoppingListsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShoppingListsTable> {
+  $$ShoppingListsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get completed => $composableBuilder(
+      column: $table.completed, builder: (column) => ColumnFilters(column));
+
+  Expression<bool> shoppingListItemsRefs(
+      Expression<bool> Function($$ShoppingListItemsTableFilterComposer f) f) {
+    final $$ShoppingListItemsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.id,
+        referencedTable: $db.shoppingListItems,
+        getReferencedColumn: (t) => t.listId,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ShoppingListItemsTableFilterComposer(
+              $db: $db,
+              $table: $db.shoppingListItems,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return f(composer);
+  }
+}
+
+class $$ShoppingListsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShoppingListsTable> {
+  $$ShoppingListsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+      column: $table.date, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get completed => $composableBuilder(
+      column: $table.completed, builder: (column) => ColumnOrderings(column));
+}
+
+class $$ShoppingListsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShoppingListsTable> {
+  $$ShoppingListsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
+
+  GeneratedColumn<bool> get completed =>
+      $composableBuilder(column: $table.completed, builder: (column) => column);
+
+  Expression<T> shoppingListItemsRefs<T extends Object>(
+      Expression<T> Function($$ShoppingListItemsTableAnnotationComposer a) f) {
+    final $$ShoppingListItemsTableAnnotationComposer composer =
+        $composerBuilder(
+            composer: this,
+            getCurrentColumn: (t) => t.id,
+            referencedTable: $db.shoppingListItems,
+            getReferencedColumn: (t) => t.listId,
+            builder: (joinBuilder,
+                    {$addJoinBuilderToRootComposer,
+                    $removeJoinBuilderFromRootComposer}) =>
+                $$ShoppingListItemsTableAnnotationComposer(
+                  $db: $db,
+                  $table: $db.shoppingListItems,
+                  $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                  joinBuilder: joinBuilder,
+                  $removeJoinBuilderFromRootComposer:
+                      $removeJoinBuilderFromRootComposer,
+                ));
+    return f(composer);
+  }
+}
+
+class $$ShoppingListsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ShoppingListsTable,
+    ShoppingListEntity,
+    $$ShoppingListsTableFilterComposer,
+    $$ShoppingListsTableOrderingComposer,
+    $$ShoppingListsTableAnnotationComposer,
+    $$ShoppingListsTableCreateCompanionBuilder,
+    $$ShoppingListsTableUpdateCompanionBuilder,
+    (ShoppingListEntity, $$ShoppingListsTableReferences),
+    ShoppingListEntity,
+    PrefetchHooks Function({bool shoppingListItemsRefs})> {
+  $$ShoppingListsTableTableManager(_$AppDatabase db, $ShoppingListsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShoppingListsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShoppingListsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShoppingListsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<DateTime> date = const Value.absent(),
+            Value<bool> completed = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShoppingListsCompanion(
+            id: id,
+            name: name,
+            date: date,
+            completed: completed,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String name,
+            required DateTime date,
+            Value<bool> completed = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShoppingListsCompanion.insert(
+            id: id,
+            name: name,
+            date: date,
+            completed: completed,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ShoppingListsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({shoppingListItemsRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (shoppingListItemsRefs) db.shoppingListItems
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (shoppingListItemsRefs)
+                    await $_getPrefetchedData<ShoppingListEntity,
+                            $ShoppingListsTable, ShoppingListItemEntity>(
+                        currentTable: table,
+                        referencedTable: $$ShoppingListsTableReferences
+                            ._shoppingListItemsRefsTable(db),
+                        managerFromTypedResult: (p0) =>
+                            $$ShoppingListsTableReferences(db, table, p0)
+                                .shoppingListItemsRefs,
+                        referencedItemsForCurrentItem: (item,
+                                referencedItems) =>
+                            referencedItems.where((e) => e.listId == item.id),
+                        typedResults: items)
+                ];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ShoppingListsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ShoppingListsTable,
+    ShoppingListEntity,
+    $$ShoppingListsTableFilterComposer,
+    $$ShoppingListsTableOrderingComposer,
+    $$ShoppingListsTableAnnotationComposer,
+    $$ShoppingListsTableCreateCompanionBuilder,
+    $$ShoppingListsTableUpdateCompanionBuilder,
+    (ShoppingListEntity, $$ShoppingListsTableReferences),
+    ShoppingListEntity,
+    PrefetchHooks Function({bool shoppingListItemsRefs})>;
+typedef $$ShoppingListItemsTableCreateCompanionBuilder
+    = ShoppingListItemsCompanion Function({
+  required String id,
+  required String listId,
+  required String name,
+  Value<double> quantity,
+  Value<double?> unitPrice,
+  Value<double> total,
+  Value<bool> checked,
+  Value<int> position,
+  Value<int> rowid,
+});
+typedef $$ShoppingListItemsTableUpdateCompanionBuilder
+    = ShoppingListItemsCompanion Function({
+  Value<String> id,
+  Value<String> listId,
+  Value<String> name,
+  Value<double> quantity,
+  Value<double?> unitPrice,
+  Value<double> total,
+  Value<bool> checked,
+  Value<int> position,
+  Value<int> rowid,
+});
+
+final class $$ShoppingListItemsTableReferences extends BaseReferences<
+    _$AppDatabase, $ShoppingListItemsTable, ShoppingListItemEntity> {
+  $$ShoppingListItemsTableReferences(
+      super.$_db, super.$_table, super.$_typedResult);
+
+  static $ShoppingListsTable _listIdTable(_$AppDatabase db) =>
+      db.shoppingLists.createAlias($_aliasNameGenerator(
+          db.shoppingListItems.listId, db.shoppingLists.id));
+
+  $$ShoppingListsTableProcessedTableManager get listId {
+    final $_column = $_itemColumn<String>('list_id')!;
+
+    final manager = $$ShoppingListsTableTableManager($_db, $_db.shoppingLists)
+        .filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_listIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+        manager.$state.copyWith(prefetchedData: [item]));
+  }
+}
+
+class $$ShoppingListItemsTableFilterComposer
+    extends Composer<_$AppDatabase, $ShoppingListItemsTable> {
+  $$ShoppingListItemsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<double> get total => $composableBuilder(
+      column: $table.total, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<bool> get checked => $composableBuilder(
+      column: $table.checked, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get position => $composableBuilder(
+      column: $table.position, builder: (column) => ColumnFilters(column));
+
+  $$ShoppingListsTableFilterComposer get listId {
+    final $$ShoppingListsTableFilterComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.listId,
+        referencedTable: $db.shoppingLists,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ShoppingListsTableFilterComposer(
+              $db: $db,
+              $table: $db.shoppingLists,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ShoppingListItemsTableOrderingComposer
+    extends Composer<_$AppDatabase, $ShoppingListItemsTable> {
+  $$ShoppingListItemsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get name => $composableBuilder(
+      column: $table.name, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get quantity => $composableBuilder(
+      column: $table.quantity, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get unitPrice => $composableBuilder(
+      column: $table.unitPrice, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<double> get total => $composableBuilder(
+      column: $table.total, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<bool> get checked => $composableBuilder(
+      column: $table.checked, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get position => $composableBuilder(
+      column: $table.position, builder: (column) => ColumnOrderings(column));
+
+  $$ShoppingListsTableOrderingComposer get listId {
+    final $$ShoppingListsTableOrderingComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.listId,
+        referencedTable: $db.shoppingLists,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ShoppingListsTableOrderingComposer(
+              $db: $db,
+              $table: $db.shoppingLists,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ShoppingListItemsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $ShoppingListItemsTable> {
+  $$ShoppingListItemsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<double> get quantity =>
+      $composableBuilder(column: $table.quantity, builder: (column) => column);
+
+  GeneratedColumn<double> get unitPrice =>
+      $composableBuilder(column: $table.unitPrice, builder: (column) => column);
+
+  GeneratedColumn<double> get total =>
+      $composableBuilder(column: $table.total, builder: (column) => column);
+
+  GeneratedColumn<bool> get checked =>
+      $composableBuilder(column: $table.checked, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  $$ShoppingListsTableAnnotationComposer get listId {
+    final $$ShoppingListsTableAnnotationComposer composer = $composerBuilder(
+        composer: this,
+        getCurrentColumn: (t) => t.listId,
+        referencedTable: $db.shoppingLists,
+        getReferencedColumn: (t) => t.id,
+        builder: (joinBuilder,
+                {$addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer}) =>
+            $$ShoppingListsTableAnnotationComposer(
+              $db: $db,
+              $table: $db.shoppingLists,
+              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+              joinBuilder: joinBuilder,
+              $removeJoinBuilderFromRootComposer:
+                  $removeJoinBuilderFromRootComposer,
+            ));
+    return composer;
+  }
+}
+
+class $$ShoppingListItemsTableTableManager extends RootTableManager<
+    _$AppDatabase,
+    $ShoppingListItemsTable,
+    ShoppingListItemEntity,
+    $$ShoppingListItemsTableFilterComposer,
+    $$ShoppingListItemsTableOrderingComposer,
+    $$ShoppingListItemsTableAnnotationComposer,
+    $$ShoppingListItemsTableCreateCompanionBuilder,
+    $$ShoppingListItemsTableUpdateCompanionBuilder,
+    (ShoppingListItemEntity, $$ShoppingListItemsTableReferences),
+    ShoppingListItemEntity,
+    PrefetchHooks Function({bool listId})> {
+  $$ShoppingListItemsTableTableManager(
+      _$AppDatabase db, $ShoppingListItemsTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ShoppingListItemsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ShoppingListItemsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ShoppingListItemsTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> listId = const Value.absent(),
+            Value<String> name = const Value.absent(),
+            Value<double> quantity = const Value.absent(),
+            Value<double?> unitPrice = const Value.absent(),
+            Value<double> total = const Value.absent(),
+            Value<bool> checked = const Value.absent(),
+            Value<int> position = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShoppingListItemsCompanion(
+            id: id,
+            listId: listId,
+            name: name,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            total: total,
+            checked: checked,
+            position: position,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            required String listId,
+            required String name,
+            Value<double> quantity = const Value.absent(),
+            Value<double?> unitPrice = const Value.absent(),
+            Value<double> total = const Value.absent(),
+            Value<bool> checked = const Value.absent(),
+            Value<int> position = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              ShoppingListItemsCompanion.insert(
+            id: id,
+            listId: listId,
+            name: name,
+            quantity: quantity,
+            unitPrice: unitPrice,
+            total: total,
+            checked: checked,
+            position: position,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (
+                    e.readTable(table),
+                    $$ShoppingListItemsTableReferences(db, table, e)
+                  ))
+              .toList(),
+          prefetchHooksCallback: ({listId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins: <
+                  T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic>>(state) {
+                if (listId) {
+                  state = state.withJoin(
+                    currentTable: table,
+                    currentColumn: table.listId,
+                    referencedTable:
+                        $$ShoppingListItemsTableReferences._listIdTable(db),
+                    referencedColumn:
+                        $$ShoppingListItemsTableReferences._listIdTable(db).id,
+                  ) as T;
+                }
+
+                return state;
+              },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ));
+}
+
+typedef $$ShoppingListItemsTableProcessedTableManager = ProcessedTableManager<
+    _$AppDatabase,
+    $ShoppingListItemsTable,
+    ShoppingListItemEntity,
+    $$ShoppingListItemsTableFilterComposer,
+    $$ShoppingListItemsTableOrderingComposer,
+    $$ShoppingListItemsTableAnnotationComposer,
+    $$ShoppingListItemsTableCreateCompanionBuilder,
+    $$ShoppingListItemsTableUpdateCompanionBuilder,
+    (ShoppingListItemEntity, $$ShoppingListItemsTableReferences),
+    ShoppingListItemEntity,
+    PrefetchHooks Function({bool listId})>;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -2631,4 +3908,8 @@ class $AppDatabaseManager {
       $$TransactionItemsTableTableManager(_db, _db.transactionItems);
   $$BudgetsTableTableManager get budgets =>
       $$BudgetsTableTableManager(_db, _db.budgets);
+  $$ShoppingListsTableTableManager get shoppingLists =>
+      $$ShoppingListsTableTableManager(_db, _db.shoppingLists);
+  $$ShoppingListItemsTableTableManager get shoppingListItems =>
+      $$ShoppingListItemsTableTableManager(_db, _db.shoppingListItems);
 }
