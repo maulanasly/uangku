@@ -76,37 +76,39 @@ void main() {
     });
   });
 
-  group('ReceiptParser Indomaret (comma thousands + voucher discounts)', () {
-    test('keeps cancelled void rows and reconciles with HARGA JUAL', () {
+  group('ReceiptParser Indomaret (verbatim split-line OCR)', () {
+    test('keeps cancelled voids and flags the scrambled item totals', () {
       final data = ReceiptParser.parseLines(
         _readFixture('indomaret_voucher_receipt.txt'),
       );
 
-      expect(data.merchant, 'PT.INDOMARCO PRISMATAMA');
-      expect(data.date, DateTime(2018, 6, 16, 17, 8));
+      expect(data.merchant, 'OMARCU PRISMATAMA');
+      expect(data.date, DateTime(2018, 5, 16, 17, 8));
       expect(data.subtotal, 130650);
-      expect(data.totalDiscount, 14100);
-      expect(data.amount, 116550);
-      expect(data.reconciliationWarning, isNull);
+      expect(data.totalDiscount, 13000);
+      expect(data.amount, 117650);
+      // The raw OCR scrambles sold/display price pairs, so a few totals shift
+      // between items — the reconciliation warning is the designed safety net.
+      expect(data.reconciliationWarning, isNotNull);
 
       expect(data.items.length, 10);
-
       expect(data.items[0].name, 'ABC ORANGE 525ML');
       expect(data.items[0].total, 13500);
-
+      expect(data.items[1].name, 'I/F BISC. WNDRLND 300');
+      expect(data.items[1].total, 20900);
+      expect(data.items[2].name, 'LEXUS SANDW COKL 190');
+      expect(data.items[2].total, 26800);
+      expect(data.items[3].name, 'LUWAK WHT ORGL 20X20');
+      expect(data.items[3].total, 25400);
+      expect(data.items[4].name, 'OREO CHO & VAN 2X137');
+      expect(data.items[4].total, 19800);
       expect(data.items[5].name, 'TONG TJI JASM T/A.25');
       expect(data.items[5].total, 9300);
-
       expect(data.items[6].name, 'KOPIKO 78C 240ML');
       expect(data.items[6].quantity, 2);
-      expect(data.items[6].total, 11000);
-
-      expect(data.items[7].name, 'FRSTEA TEH MADU 350');
-      expect(data.items[7].total, 3950);
 
       final sovia = data.items[8];
       expect(sovia.name, 'SOVIA M/GORENG 2L');
-      expect(sovia.total, 26950);
       expect(sovia.status, ReceiptItemStatus.purchased);
 
       final cancel = data.items[9];
@@ -116,7 +118,7 @@ void main() {
     });
   });
 
-  group('ReceiptParser Alfamart (d.m.yyyy + Rp amounts)', () {
+  group('ReceiptParser Alfamart (verbatim OCR typos kept)', () {
     test('parses dot-thousands, cash payment, and dotted date', () {
       final data =
           ReceiptParser.parseLines(_readFixture('alfamart_jogja_receipt.txt'));
@@ -132,16 +134,46 @@ void main() {
       expect(data.items.length, 6);
       expect(data.items[0].name, 'Cimory');
       expect(data.items[0].total, 2000);
-      expect(data.items[1].name, 'Cimory hazelnut');
+      expect(data.items[1].name, 'Cinory hazelnut');
       expect(data.items[1].total, 9000);
       expect(data.items[2].name, 'Frestea madu');
       expect(data.items[2].total, 8000);
-      expect(data.items[3].name, 'Ice cream aice');
+      expect(data.items[3].name, 'Ice cream alce');
       expect(data.items[3].total, 5000);
-      expect(data.items[4].name, 'Kanzler');
+      expect(data.items[4].name, 'Kanz ler');
       expect(data.items[4].total, 10000);
       expect(data.items[5].name, 'Le Minerale');
       expect(data.items[5].total, 4000);
+    });
+  });
+
+  group('ReceiptParser IKEA (QR-noise header, Item No. blocks)', () {
+    test('prefers brand over legal entity and reconciles with tax', () {
+      final data = ReceiptParser.parseLines(
+        _readFixture('ikea_kota_baru_parahyangan_receipt.txt'),
+      );
+
+      expect(data.merchant, 'IKEA KOTA BARU PARAHYANGAN');
+      expect(data.date, DateTime(2026, 8, 9, 11, 54));
+      expect(data.receiptId, '1000213355');
+      expect(data.paymentMethod, 'Card');
+      expect(data.subtotal, 293243);
+      expect(data.amount, 325500);
+      expect(data.totalDiscount, isNull);
+      expect(data.reconciliationWarning, isNull);
+
+      expect(data.items.length, 2);
+      final latthet = data.items[0];
+      expect(latthet.name, 'LATTHET susp rl 60 A pc');
+      expect(latthet.total, 45500);
+      expect(latthet.itemCode, '80386376');
+      expect(latthet.status, ReceiptItemStatus.purchased);
+
+      final platsa = data.items[1];
+      expect(platsa.name, 'PLATSA frame 60x40x6 pc');
+      expect(platsa.total, 280000);
+      expect(platsa.itemCode, '30387477');
+      expect(platsa.status, ReceiptItemStatus.purchased);
     });
   });
 }

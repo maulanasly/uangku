@@ -173,6 +173,10 @@ class ReceiptParser {
     'ord',
     'receipt',
     'bill',
+    'slip',
+    'trans',
+    'staff',
+    'family',
     'kasir',
     'cashier',
     'npwp',
@@ -202,6 +206,10 @@ class ReceiptParser {
     'ord',
     'receipt',
     'bill',
+    'slip',
+    'trans',
+    'staff',
+    'family',
     'kasir',
     'cashier',
     'npwp',
@@ -261,6 +269,8 @@ class ReceiptParser {
     'produk',
     'item',
     'nama',
+    'description',
+    'amount',
   ];
 
   static const List<String> _subtotalKeywords = [
@@ -378,7 +388,7 @@ class ReceiptParser {
       RegExp(r'-?[\d][\d.,]*(?![.,\dA-Za-z])');
 
   static final RegExp _receiptStrukRegex = RegExp(
-    r'(struk|invoice|faktur|transaksi|trx|receipt|bill)'
+    r'(struk|invoice|faktur|transaksi|trx|receipt|bill|slip|trans)'
     r'(?:\s*(?:no|nomor|no\.))?\s*[:=]?\s*([A-Za-z0-9][A-Za-z0-9\-/]*)',
     caseSensitive: false,
   );
@@ -406,11 +416,20 @@ class ReceiptParser {
         .where((i) => i.status != ReceiptItemStatus.cancelled || i.total < 0)
         .fold<double>(0, (s, i) => s + i.total);
     String? warning;
-    if (totals.subtotal != null && !_approx(itemSum, totals.subtotal!)) {
-      warning = 'Scanned items sum to ${_fmt(itemSum)} but the subtotal shows '
-          '${_fmt(totals.subtotal!)}. Review the items before saving.';
-    } else if (totals.amount != null &&
-        totals.subtotal != null &&
+    final matchesSubtotal =
+        totals.subtotal != null && _approx(itemSum, totals.subtotal!);
+    final matchesAmount =
+        totals.amount != null && _approx(itemSum, totals.amount!);
+    if (!matchesSubtotal && !matchesAmount) {
+      if (totals.subtotal != null) {
+        warning = 'Scanned items sum to ${_fmt(itemSum)} but the subtotal '
+            'shows ${_fmt(totals.subtotal!)}. Review the items before saving.';
+      } else if (totals.amount != null) {
+        warning = 'Scanned items sum to ${_fmt(itemSum)} but the total shows '
+            '${_fmt(totals.amount!)}. Review the items before saving.';
+      }
+    } else if (totals.subtotal != null &&
+        totals.amount != null &&
         !_approx(totals.amount!, totals.expected)) {
       warning =
           'The total (${_fmt(totals.amount!)}) does not match the subtotal '
@@ -454,16 +473,44 @@ class ReceiptParser {
   static _HeaderScan _scanHeader(List<String> clean) {
     int? merchantIndex;
     String? merchant;
+    int? fallbackIndex;
+    String? fallbackMerchant;
 
     for (int i = 0; i < clean.length; i++) {
       final line = clean[i];
       final lower = line.toLowerCase();
-      if (_isHeaderMetadata(line, lower)) continue;
       if (_isMerchantLike(line, lower)) {
+        // A merchant-shaped row that is really an address (street/zip line)
+        // is only a fallback — keep scanning for a real brand name.
+        if (_isMerchantAddressish(line, lower)) {
+          fallbackMerchant ??= line;
+          fallbackIndex ??= i;
+          continue;
+        }
         merchant = line;
         merchantIndex = i;
+        // Prefer the brand over a legal-entity line (`PT. RUMAH MEBEL
+        // NUSANTARA` vs `IKEA KOTA BARU PARAHYANGAN`).
+        if (_isLegalEntity(line, lower)) {
+          for (int j = i + 1; j < clean.length; j++) {
+            final l2 = clean[j];
+            final lower2 = l2.toLowerCase();
+            if (_isHardHeaderMetadata(l2, lower2)) continue;
+            if (_isMerchantAddressish(l2, lower2)) continue;
+            if (_isMerchantLike(l2, lower2) && !_isLegalEntity(l2, lower2)) {
+              merchant = l2;
+              merchantIndex = j;
+              break;
+            }
+          }
+        }
         break;
       }
+    }
+
+    if (merchant == null) {
+      merchant = fallbackMerchant;
+      merchantIndex = fallbackIndex;
     }
 
     int headerEnd = (merchantIndex ?? -1) + 1;
@@ -472,6 +519,8 @@ class ReceiptParser {
       while (i < clean.length) {
         final line = clean[i];
         final lower = line.toLowerCase();
+        // An item-table header row means the item body begins here.
+        if (_isItemHeaderRow(line, lower)) break;
         if (_isHeaderMetadata(line, lower)) {
           i++;
           continue;
@@ -503,6 +552,8 @@ class ReceiptParser {
       if (_timeOnlyRegex.hasMatch(line)) continue;
       if (_headerMetaKeywords.any((k) => _containsWord(lower, k))) continue;
       if (_isItemHeaderRow(line, lower)) continue;
+      if (_barcodeRegex.hasMatch(line)) continue;
+      if (RegExp(r'^[A-Za-z0-9_-]{10,}$').hasMatch(line)) continue;
       addressParts.add(line);
     }
 
@@ -517,6 +568,7 @@ class ReceiptParser {
   }
 
   static DateTime? _scanDate(List<String> clean) {
+    DateTime? fallback;
     for (int i = 0; i < clean.length; i++) {
       final dm = _matchDate(clean[i]);
       if (dm == null) continue;
@@ -551,7 +603,7 @@ class ReceiptParser {
         second = null;
       }
 
-      return DateTime(
+      final result = DateTime(
         dm.year,
         dm.month,
         dm.day,
@@ -559,8 +611,12 @@ class ReceiptParser {
         minute ?? 0,
         second ?? 0,
       );
+      // Prefer a date that carries a time of day — address fragments like
+      // `JL ANCOL 1/9-10` otherwise win over the real `16.05.18-17:08` row.
+      if (hour != null) return result;
+      fallback ??= result;
     }
-    return null;
+    return fallback;
   }
 
   static String? _scanReceiptId(List<String> clean, int headerEnd) {
@@ -630,39 +686,82 @@ class ReceiptParser {
     double totalDiscount = 0;
     double taxSum = 0;
     double? changeDue;
+    int? firstTotalLabelIndex;
     final candidates = <({int index, double value})>[];
+    final consumed = <int>{};
+
+    // OCR splits label and value onto separate lines. When a totals label has
+    // no inline amount, consume the next available money row (skipping other
+    // labels, payment rows, and card masks) FIFO-style.
+    double? takeValueAfter(int from) {
+      for (int j = from + 1; j < clean.length && j <= from + 6; j++) {
+        if (consumed.contains(j)) continue;
+        final line = clean[j];
+        if (_totalsSkipLine(line)) continue;
+        final value = _lineMoney(line);
+        if (value == null) continue;
+        consumed.add(j);
+        return value.abs();
+      }
+      return null;
+    }
 
     for (int i = 0; i < clean.length; i++) {
       final line = clean[i];
       final lower = line.toLowerCase();
-      final value = _lineMoney(line);
+      final kind = _totalLabelKind(line, lower);
+      if (kind == null) continue;
+      firstTotalLabelIndex ??= i;
 
-      final isSubtotal = _subtotalKeywords.any((k) => _containsWord(lower, k));
-      if (isSubtotal && value != null && value > 0) {
-        subtotal = value;
-        subtotalIndex = i;
-      }
+      final inline = _lineMoney(line);
+      final absInline = inline?.abs();
 
-      if (_discountKeywords.any((k) => _containsWord(lower, k)) &&
-          !_isDiscountMirrorLine(line, lower)) {
-        final d = _discountValue(line);
-        if (d != null && d > 0) totalDiscount += d;
-      }
-
-      if (_taxKeywords.any((k) => _containsWord(lower, k))) {
-        if (value != null && value > 0) taxSum += value;
-      }
-
-      if (_changeKeywords.any((k) => _containsWord(lower, k))) {
-        if (value != null && value > 0) changeDue = value;
-      }
-
-      final isGrandTotal = !isSubtotal &&
-          (_containsWord(lower, 'total') ||
-              _containsWord(lower, 'jumlah') ||
-              _containsWord(lower, 'belanja'));
-      if (isGrandTotal && value != null && value > 0) {
-        candidates.add((index: i, value: value));
+      switch (kind) {
+        case _TotalLabelKind.subtotal:
+          if (absInline != null && absInline > 0) {
+            subtotal = absInline;
+            subtotalIndex = i;
+          } else {
+            final v = takeValueAfter(i);
+            if (v != null && v > 0) {
+              subtotal = v;
+              subtotalIndex = i;
+            }
+          }
+          break;
+        case _TotalLabelKind.discount:
+          final d = _discountValue(line);
+          if (d != null && d > 0) {
+            totalDiscount += d;
+          } else {
+            final v = takeValueAfter(i);
+            if (v != null) totalDiscount += v.abs();
+          }
+          break;
+        case _TotalLabelKind.tax:
+          if (absInline != null && absInline > 0) {
+            taxSum += absInline;
+          } else {
+            final v = takeValueAfter(i);
+            if (v != null) taxSum += v.abs();
+          }
+          break;
+        case _TotalLabelKind.change:
+          if (absInline != null && absInline > 0) {
+            changeDue = absInline;
+          } else {
+            final v = takeValueAfter(i);
+            if (v != null) changeDue = v;
+          }
+          break;
+        case _TotalLabelKind.grandtotal:
+          if (absInline != null && absInline > 0) {
+            candidates.add((index: i, value: absInline));
+          } else {
+            final v = takeValueAfter(i);
+            if (v != null) candidates.add((index: i, value: v));
+          }
+          break;
       }
     }
 
@@ -680,10 +779,16 @@ class ReceiptParser {
         }
       }
       amount = best.value;
-      totalIndex = best.index;
+      totalIndex = firstTotalLabelIndex ?? best.index;
     } else if (subtotal != null) {
       amount = subtotal - totalDiscount + taxSum;
-      totalIndex = subtotalIndex;
+      totalIndex = firstTotalLabelIndex ?? subtotalIndex;
+    }
+
+    // `CHANGE DUE` followed by the same number as the grand total is a
+    // reprint of the amount, not real change (YOGYA prints `42.400` twice).
+    if (changeDue != null && amount != null && _approx(changeDue, amount)) {
+      changeDue = null;
     }
 
     return _TotalsScan(
@@ -696,6 +801,81 @@ class ReceiptParser {
     );
   }
 
+  /// Classifies a line as a totals label, or null for everything else.
+  static _TotalLabelKind? _totalLabelKind(String line, String lower) {
+    if (_isDiscountMirrorLine(line, lower)) return null;
+
+    // A multi-word item-table header (`ITEM QTY HARGA JUMLAH`) is not a
+    // totals label even though it contains `jumlah`.
+    final itemHeaderHits =
+        _itemHeaderKeywords.where((k) => _containsWord(lower, k)).length;
+    if (itemHeaderHits >= 2) return null;
+
+    if (_discountKeywords.any((k) => _containsWord(lower, k))) {
+      // Per-item annotations (`DISC 50%`) and bare footer promos carry no
+      // aggregate meaning. Only trust value-less discount lines when they look
+      // like an aggregate or end with a `:` that precedes a value on the next
+      // line.
+      final hasValue = _discountValue(line) != null;
+      if (!hasValue &&
+          !_containsWord(lower, 'total') &&
+          !_containsWord(lower, 'jumlah') &&
+          !line.endsWith(':')) {
+        return null;
+      }
+      return _TotalLabelKind.discount;
+    }
+
+    if (_taxKeywords.any((k) => _containsWord(lower, k))) {
+      final hasValue = _lineMoney(line) != null;
+      // A value-less tax row is only trusted when it clearly precedes an
+      // amount (`TAX Amt`, `PPN:`). Bare section titles like `TAX` or
+      // `Rounding` must not consume the subtotal's value.
+      if (!hasValue &&
+          !_containsWord(lower, 'amt') &&
+          !_containsWord(lower, 'amount') &&
+          !line.endsWith(':')) {
+        return null;
+      }
+      return _TotalLabelKind.tax;
+    }
+
+    if (_subtotalKeywords.any((k) => _containsWord(lower, k)) ||
+        (_containsWord(lower, 'net') && _containsWord(lower, 'amt'))) {
+      return _TotalLabelKind.subtotal;
+    }
+
+    if (_changeKeywords.any((k) => _containsWord(lower, k))) {
+      return _TotalLabelKind.change;
+    }
+
+    if (_containsWord(lower, 'total') ||
+        _containsWord(lower, 'jumlah') ||
+        _containsWord(lower, 'belanja')) {
+      return _TotalLabelKind.grandtotal;
+    }
+
+    return null;
+  }
+
+  /// Rows that must never be consumed as a totals value during label lookahead
+  /// (payment rows, card masks, loyalty footers, and other noise).
+  static bool _totalsSkipLine(String line) {
+    final lower = line.toLowerCase();
+    if (line.contains('*') && _moneyTokens(line).isNotEmpty) return true;
+    if (_matchDate(line) != null) return true;
+    if (_timeOnlyRegex.hasMatch(line)) return true;
+    if (_paymentKeywords.any((k) => _containsWord(lower, k))) return true;
+    if (_containsWord(lower, 'lunas')) return true;
+    if (_containsWord(lower, 'point') ||
+        _containsWord(lower, 'purchased') ||
+        _containsWord(lower, 'earned') ||
+        _containsWord(lower, 'qty')) {
+      return true;
+    }
+    return _isNoiseLine(line, lower);
+  }
+
   // ---------------------------------------------------------------------------
   // Stage 3 — line items
   // ---------------------------------------------------------------------------
@@ -706,48 +886,110 @@ class ReceiptParser {
     required int toIndex,
   }) {
     final items = <ReceiptItem>[];
-    final pending = <String>[];
-
-    double? pendingQty;
-    double? pendingUnit;
+    final blocks = <_PendingItem>[];
     String? pendingCode;
+    double? carryQty;
+    double? carryUnit;
 
-    void flushAll() {
-      pending.clear();
-      pendingQty = null;
-      pendingUnit = null;
+    void clearAll() {
+      blocks.clear();
       pendingCode = null;
+      carryQty = null;
+      carryUnit = null;
     }
-
-    void flushNames() => pending.clear();
 
     void resetCarry() {
-      pendingQty = null;
-      pendingUnit = null;
-      pendingCode = null;
+      carryQty = null;
+      carryUnit = null;
     }
 
-    void emitPending({
-      double quantity = 1,
+    /// Whether the row right before [i] is a plain item-name line.
+    bool prevLineWasName(int i) {
+      if (i <= fromIndex) return false;
+      final prev = clean[i - 1];
+      final lower = prev.toLowerCase();
+      if (_moneyTokens(prev).isNotEmpty) return false;
+      if (_matchDate(prev) != null) return false;
+      if (_timeOnlyRegex.hasMatch(prev)) return false;
+      if (_isNoiseLine(prev, lower)) return false;
+      if (_isAddressish(prev, lower)) return false;
+      return _looksLikeItemName(prev);
+    }
+
+    /// Stores a qty/unit carry. Rows that follow a name line directly (e.g.
+    /// Alfamart `Cimory` / `1x 2.000`) bind to that item; otherwise the carry
+    /// is held for the next created block (YOGYA `2.0 X 12000`).
+    void stashCarry(double qty, double? unit, {required bool afterName}) {
+      if (afterName && blocks.isNotEmpty) {
+        final b = blocks.last;
+        if (!b.emitted && b.qty == null) {
+          b.qty = qty;
+          b.unit = unit;
+          return;
+        }
+      }
+      carryQty = qty;
+      carryUnit = unit;
+    }
+
+    /// Attaches a qty to the oldest unemitted block that still lacks one.
+    bool attachQty(double qty, double? unit) {
+      for (final b in blocks) {
+        if (!b.emitted && b.qty == null) {
+          b.qty = qty;
+          b.unit = unit;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    void emitOldest(
+      double total, {
+      double? quantity,
       double? unitPrice,
       double? weight,
-      required double total,
-      String? itemCode,
       ReceiptItemStatus? status,
     }) {
-      if (pending.isEmpty) return;
-      final name = pending.join(' ').trim();
-      pending.clear();
-      if (total.abs() == 0 || !_looksLikeItemName(name)) return;
+      for (final b in blocks) {
+        if (b.emitted) continue;
+        b.emitted = true;
+        if (quantity == null && b.qty == null && carryQty != null) {
+          b.qty = carryQty;
+          b.unit = carryUnit;
+          resetCarry();
+        }
+        final name = b.nameLines.join(' ').trim();
+        if (total.abs() == 0 || !_looksLikeItemName(name)) return;
+        items.add(
+          ReceiptItem(
+            name: name,
+            quantity: quantity ?? b.qty ?? 1,
+            unitPrice: unitPrice ?? b.unit,
+            weight: weight ?? b.weight,
+            total: total,
+            itemCode: b.code ?? pendingCode,
+            status: status,
+          ),
+        );
+        pendingCode = null;
+        return;
+      }
+    }
+
+    void foldDiscount(double amount) {
+      if (items.isEmpty) return;
+      final last = items.removeLast();
       items.add(
         ReceiptItem(
-          name: name,
-          quantity: quantity,
-          unitPrice: unitPrice,
-          weight: weight,
-          total: total,
-          itemCode: itemCode,
-          status: status,
+          name: last.name,
+          quantity: last.quantity,
+          unitPrice: last.unitPrice,
+          weight: last.weight,
+          total: last.total,
+          itemCode: last.itemCode,
+          discountAmount: (last.discountAmount ?? 0) + amount,
+          status: last.status,
         ),
       );
     }
@@ -763,66 +1005,67 @@ class ReceiptParser {
       // Per-item discount mirror rows (`DISC 20% X 1.0 2.400-`) fold into the
       // preceding item instead of becoming items of their own.
       if (_isDiscountMirrorLine(raw, lower)) {
-        if (items.isNotEmpty) {
-          final amount = _discountValue(raw);
-          if (amount != null) {
-            final last = items.removeLast();
-            items.add(
-              ReceiptItem(
-                name: last.name,
-                quantity: last.quantity,
-                unitPrice: last.unitPrice,
-                weight: last.weight,
-                total: last.total,
-                itemCode: last.itemCode,
-                discountAmount: (last.discountAmount ?? 0) + amount,
-                status: last.status,
-              ),
-            );
-          }
-        }
-        flushAll();
+        final amount = _discountValue(raw);
+        if (amount != null) foldDiscount(amount);
         continue;
       }
 
-      // `ITEM # <code>` carries a code forward to the next item line.
-      final carriedCode = _itemCodeLine(raw);
-      if (carriedCode != null) {
-        pendingCode = carriedCode;
-        flushNames();
+      // Percentage-only annotations (`DISC 50%`) are per-item markers — skip
+      // without disturbing the pending queue.
+      final isDiscountAnnotation = _discountKeywords
+              .any((k) => _containsWord(lower, k)) &&
+          lower.contains('%') &&
+          _discountValue(raw) == null;
+      if (isDiscountAnnotation) {
+        continue;
+      }
+
+      // `ITEM # <code>` / `Item No.: <code>` carries a code to the next item.
+      final code = _itemCodeLine(raw);
+      if (code != null) {
+        pendingCode = code;
         continue;
       }
 
       if (_matchDate(raw) != null) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (_timeOnlyRegex.hasMatch(raw)) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (_isItemHeaderRow(raw, lower)) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (_isCityZip(raw)) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (raw.startsWith(',') || lower.startsWith('http')) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (_isAddressish(raw, lower)) {
-        flushAll();
-        continue;
-      }
-      if (_isNoiseLine(raw, lower)) {
-        flushAll();
+        clearAll();
         continue;
       }
       if (_barcodeRegex.hasMatch(raw)) {
-        flushAll();
+        clearAll();
+        continue;
+      }
+      if (_isAsIsOrder(raw)) {
+        continue;
+      }
+      if (_isQrNoise(raw, lower)) {
+        continue;
+      }
+      if (RegExp(r'^[xX]$').hasMatch(raw)) {
+        continue;
+      }
+      if (_isNoiseLine(raw, lower)) {
+        clearAll();
         continue;
       }
 
@@ -840,69 +1083,103 @@ class ReceiptParser {
 
       final parsed = _parseItemLine(raw);
       if (parsed == null) {
-        if (_looksLikeItemName(raw) && pending.length < 4) {
-          pending.add(raw);
-        } else {
-          flushAll();
-        }
-        continue;
-      }
-
-      // `qty x unit` with no total — stash for the following name + total line.
-      if (parsed.total == null && parsed.unitPrice != null) {
-        pendingQty = parsed.quantity;
-        pendingUnit = parsed.unitPrice;
-        flushNames();
-        continue;
-      }
-
-      if (parsed.name.isNotEmpty && parsed.total != null) {
-        if (_looksLikeItemName(parsed.name)) {
-          var quantity = parsed.quantity;
-          var unitPrice = parsed.unitPrice;
-          final carriedQty = pendingQty;
-          if (quantity == 1 && unitPrice == null && carriedQty != null) {
-            quantity = carriedQty;
-            unitPrice = pendingUnit;
-          }
-          var name = parsed.name;
-          var total = parsed.total!;
-          if (status == ReceiptItemStatus.cancelled &&
-              _isCancelOnlyName(parsed.name)) {
-            if (items.isNotEmpty) name = items.last.name;
-            total = -total.abs();
-          }
-          items.add(
-            ReceiptItem(
-              name: name,
-              quantity: quantity,
-              unitPrice: unitPrice,
-              weight: parsed.weight,
-              total: total,
-              itemCode: pendingCode ?? itemCode,
-              status: status,
+        // A name-only row opens a new pending item block.
+        if (_looksLikeItemName(raw)) {
+          blocks.add(
+            _PendingItem(
+              code: pendingCode,
+              qty: carryQty,
+              unit: carryUnit,
             ),
           );
+          pendingCode = null;
+          resetCarry();
+          blocks.last.nameLines.add(raw);
+        } else {
+          clearAll();
         }
-        resetCarry();
-        flushNames();
         continue;
       }
 
-      if (parsed.total != null && pending.isNotEmpty) {
-        emitPending(
-          quantity: parsed.quantity,
+      // qty/unit carry rows with no total.
+      if (parsed.total == null) {
+        if (parsed.unitPrice != null) {
+          stashCarry(
+            parsed.quantity,
+            parsed.unitPrice,
+            afterName: prevLineWasName(i),
+          );
+        } else if (parsed.quantity > 0) {
+          if (!attachQty(parsed.quantity, null)) {
+            stashCarry(
+              parsed.quantity,
+              null,
+              afterName: prevLineWasName(i),
+            );
+          }
+        }
+        continue;
+      }
+
+      // A complete item on one line (`GULA PASIR 1KG 15.500`, cancel rows).
+      if (parsed.name.isNotEmpty && _looksLikeItemName(parsed.name)) {
+        var name = parsed.name;
+        var total = parsed.total!;
+        if (status == ReceiptItemStatus.cancelled &&
+            _isCancelOnlyName(parsed.name)) {
+          if (items.isNotEmpty) name = items.last.name;
+          total = -total.abs();
+        }
+        items.add(
+          ReceiptItem(
+            name: name,
+            quantity: parsed.quantity,
+            unitPrice: parsed.unitPrice,
+            weight: parsed.weight,
+            total: total,
+            itemCode: pendingCode ?? itemCode,
+            status: status,
+          ),
+        );
+        pendingCode = null;
+        resetCarry();
+        continue;
+      }
+
+      // Bare money row: negative = a discount for the last item; small integer
+      // = qty; otherwise a total for the oldest pending block.
+      if (parsed.name.isEmpty) {
+        final v = parsed.total!;
+        if (v < 0) {
+          if (items.isNotEmpty) foldDiscount(v.abs());
+          continue;
+        }
+        if (v > 0 &&
+            v < 100 &&
+            v == v.roundToDouble() &&
+            parsed.unitPrice == null) {
+          if (!attachQty(v, null)) carryQty = v;
+          continue;
+        }
+        // Column-split duplicate mirrors: OCR prints the same total twice
+        // (`13500` sold price, then a formatted `13,500` display copy). Skip
+        // the formatted copy so it does not shift onto the next item.
+        if (items.isNotEmpty &&
+            RegExp(r'[.,]').hasMatch(raw) &&
+            _approx(v, items.last.total)) {
+          continue;
+        }
+        emitOldest(
+          v,
+          quantity: parsed.unitPrice != null ? parsed.quantity : null,
           unitPrice: parsed.unitPrice,
           weight: parsed.weight,
-          total: parsed.total!,
-          itemCode: pendingCode ?? itemCode,
           status: status,
         );
-        resetCarry();
         continue;
       }
 
-      flushAll();
+      clearAll();
     }
     return items;
   }
@@ -912,6 +1189,22 @@ class ReceiptParser {
   static _ParsedLine? _parseItemLine(String raw) {
     final tokens = _moneyTokens(raw);
     if (tokens.isEmpty) return null;
+
+    // Trailing pack-size / SKU numbers (`I/F BISC. WNDRLND 300`,
+    // `OREO CHO & VAN 2X137`, `PLATSA frame 60x40x6 pc`) are part of the
+    // name, not money. Small unformatted integers with a real name prefix
+    // therefore mark the line as name-only.
+    final allUnformatted = tokens.every(
+      (t) => !RegExp(r'[.,]').hasMatch(raw.substring(t.start, t.end)),
+    );
+    final allSmallCount = allUnformatted &&
+        tokens.every(
+          (t) => t.value.abs() < 1000 && t.value == t.value.roundToDouble(),
+        );
+    if (allSmallCount &&
+        RegExp(r'[A-Za-z]').hasMatch(raw.substring(0, tokens.first.start))) {
+      return null;
+    }
 
     final first = _nameBoundaryToken(raw, tokens) ?? tokens.first;
     var name = raw.substring(0, first.start).trim();
@@ -1029,6 +1322,16 @@ class ReceiptParser {
       }
     }
 
+    // `x <qty>` with no unit and no total (e.g. YOGYA `x 1.0`, `X 2.0`) — a
+    // bare quantity that applies to the next total.
+    final xAlone = RegExp(
+      r'^[xX]\s*(\d+(?:[.,]\d+)?)$',
+    ).firstMatch(raw);
+    if (xAlone != null) {
+      final qty = _parseAmount(xAlone.group(1)!) ?? 1;
+      return _ParsedLine(quantity: qty);
+    }
+
     // Generic token layouts.
     if (values.length >= 3) {
       final q = values[values.length - 3];
@@ -1063,22 +1366,98 @@ class ReceiptParser {
   // ---------------------------------------------------------------------------
 
   static bool _isHeaderMetadata(String line, String lower) {
-    if (_separatorRegex.hasMatch(line)) return true;
-    if (_matchDate(line) != null) return true;
-    if (_timeOnlyRegex.hasMatch(line)) return true;
-    if (_isItemHeaderRow(line, lower)) return true;
-    if (_idKeywords.any((k) => _containsWord(lower, k))) return true;
+    if (_isHardHeaderMetadata(line, lower)) return true;
     if (_addressKeywords.any((k) => _containsWord(lower, k))) return true;
     if (_isCityZip(line)) return true;
     return false;
   }
 
+  /// Metadata rows skipped regardless of context: separators, dates/times,
+  /// item-table headers, id/number rows, barcodes, and QR-artwork noise.
+  /// Unlike [_isHeaderMetadata], address lines are NOT metadata here, so a
+  /// store name that happens to contain a place word (`IKEA KOTA BARU
+  /// PARAHYANGAN`) can still be detected as the merchant.
+  static bool _isHardHeaderMetadata(String line, String lower) {
+    if (_separatorRegex.hasMatch(line)) return true;
+    if (_matchDate(line) != null) return true;
+    if (_timeOnlyRegex.hasMatch(line)) return true;
+    if (_isItemHeaderRow(line, lower)) return true;
+    if (_idKeywords.any((k) => _containsWord(lower, k))) return true;
+    if (_barcodeRegex.hasMatch(line)) return true;
+    if (RegExp(r'^[A-Za-z0-9_-]{10,}$').hasMatch(line)) return true;
+    if (_isQrNoise(line, lower)) return true;
+    return false;
+  }
+
+  /// Rows from QR-artwork OCR noise (IKEA "Bantu kami" blocks and gibberish
+  /// like `m vlimsi` / `si nspnob`), plus short all-lowercase decoration.
+  static bool _isQrNoise(String line, String lower) {
+    if (RegExp(r'[^\x00-\x7F]').hasMatch(line)) return true;
+    if (_containsWord(lower, 'bantu') || _containsWord(lower, 'lebih')) {
+      return true;
+    }
+    if (_containsWord(lower, 'scan') && _containsWord(lower, 'qr')) {
+      return true;
+    }
+    if (line.length <= 25 && RegExp(r'^[a-z\s.,:;]+$').hasMatch(line)) {
+      return true;
+    }
+    return false;
+  }
+
+  /// IKEA `AsIs Order <long-id>` rows — order metadata, not item lines.
+  static bool _isAsIsOrder(String raw) {
+    final lower = raw.toLowerCase();
+    if (!lower.contains('order')) return false;
+    return RegExp(r'\d{8,}').hasMatch(raw);
+  }
+
   static bool _isMerchantLike(String line, String lower) {
     if (line.length < 3) return false;
-    if (_isHeaderMetadata(line, lower)) return false;
+    if (_isHardHeaderMetadata(line, lower)) return false;
     if (line.contains(RegExp(r'\d'))) return false;
     if (_moneyTokens(line).isNotEmpty) return false;
     return RegExp(r'[A-Za-z]{2,}').hasMatch(line);
+  }
+
+  /// Address rows that must not be picked as a merchant name. Street keywords
+  /// and dotted admin abbreviations (`KAB.`, `KEC.`) count; a bare place word
+  /// like `KOTA` does not, so store names such as `IKEA KOTA BARU
+  /// PARAHYANGAN` still qualify as merchants.
+  static bool _isMerchantAddressish(String line, String lower) {
+    if (RegExp(r'\b(?:kab|kec|kel|rt|rw)\.?\s').hasMatch(lower)) return true;
+    const streets = [
+      'jl',
+      'jalan',
+      'st',
+      'street',
+      'rd',
+      'road',
+      'ave',
+      'avenue',
+      'blvd',
+      'boulevard',
+      'dr',
+      'drive',
+      'lane',
+      'place',
+      'court',
+      'plaza',
+      'dusun',
+      'gang',
+      'blok',
+      'km',
+    ];
+    if (streets.any((k) => _containsWord(lower, k))) return true;
+    if (_isCityZip(line)) return true;
+    return false;
+  }
+
+  /// Whether a line names a legal entity (PT./CV./UD./NV) rather than the
+  /// trading/brand name.
+  static bool _isLegalEntity(String line, String lower) {
+    return RegExp(r'^(?:pt|cv|ud|nv)\.?[\.\s]', caseSensitive: false)
+        .hasMatch(line);
   }
 
   static bool _isAddressish(String line, String lower) {
@@ -1139,7 +1518,7 @@ class ReceiptParser {
   }
 
   static final RegExp _itemCodeLineRegex = RegExp(
-    r'^item\s*[#:]\s*([A-Za-z0-9][A-Za-z0-9\-/]*)',
+    r'^item\s*(?:no\.?\s*)?[#:]\s*([A-Za-z0-9][A-Za-z0-9\-/]*)',
     caseSensitive: false,
   );
 
@@ -1249,10 +1628,16 @@ class ReceiptParser {
     final out = <({double value, int start, int end})>[];
     for (final match in _moneyTokenRegex.allMatches(line)) {
       final token = match.group(0)!;
-      final end = match.end;
+      var end = match.end;
       if (end < line.length && line[end] == '%') continue;
-      final value = _parseAmount(token);
+      var value = _parseAmount(token);
       if (value == null) continue;
+      // Trailing-minus negatives (e.g. `115.000-`, `332.500-`) — the OCR prints
+      // the minus after the number.
+      if (end < line.length && line[end] == '-') {
+        value = -value.abs();
+        end += 1;
+      }
       if (!_isPlausibleMoney(token, value)) continue;
       out.add((value: value, start: match.start, end: end));
     }
@@ -1474,6 +1859,8 @@ class _TotalsScan {
   });
 }
 
+enum _TotalLabelKind { subtotal, discount, tax, change, grandtotal }
+
 class _ParsedLine {
   final String name;
   final double quantity;
@@ -1488,6 +1875,19 @@ class _ParsedLine {
     this.weight,
     this.total,
   });
+}
+
+/// A pending item assembled from split-line OCR rows. Names and `qty x unit`
+/// carries accumulate on a block until a bare total row emits it.
+class _PendingItem {
+  final List<String> nameLines = [];
+  String? code;
+  double? qty;
+  double? unit;
+  double? weight;
+  bool emitted = false;
+
+  _PendingItem({this.code, this.qty, this.unit});
 }
 
 class _DateMatch {
