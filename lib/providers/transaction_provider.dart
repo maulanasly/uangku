@@ -23,6 +23,10 @@ final ocrModeProvider = FutureProvider<String>((ref) {
   return PreferencesService().getOcrMode();
 });
 
+final showOcrDebugProvider = FutureProvider<bool>((ref) {
+  return PreferencesService().getShowOcrDebug();
+});
+
 final themeModeProvider = FutureProvider<ThemeMode>((ref) async {
   final pref = await PreferencesService().getThemeModePref();
   switch (pref) {
@@ -58,7 +62,8 @@ final transactionItemsFamily =
   },
 );
 
-final filteredTransactionsProvider = StreamProvider<List<TransactionEntity>>((ref) {
+final filteredTransactionsProvider =
+    StreamProvider<List<TransactionEntity>>((ref) {
   final query = ref.watch(transactionQueryProvider);
   final repo = ref.watch(transactionRepositoryProvider);
   return repo.watchTransactions(query);

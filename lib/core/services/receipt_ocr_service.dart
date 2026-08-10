@@ -40,7 +40,8 @@ class ReceiptOcrService {
     try {
       final text = await ocrService.extractText(path, bytes);
       return (
-        data: ReceiptParser.parseLines(text.split('\n')),
+        data:
+            ReceiptParser.parseLines(text.split('\n')).copyWith(rawText: text),
         cloudProvider: null,
       );
     } catch (_) {

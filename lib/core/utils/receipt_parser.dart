@@ -37,6 +37,7 @@ class ReceiptData {
   final double? totalDiscount;
   final double? changeDue;
   final String? reconciliationWarning;
+  final String? rawText;
 
   ReceiptData({
     this.merchant,
@@ -50,7 +51,39 @@ class ReceiptData {
     this.totalDiscount,
     this.changeDue,
     this.reconciliationWarning,
+    this.rawText,
   });
+
+  ReceiptData copyWith({
+    String? merchant,
+    DateTime? date,
+    double? amount,
+    List<ReceiptItem>? items,
+    String? storeAddress,
+    String? receiptId,
+    String? paymentMethod,
+    double? subtotal,
+    double? totalDiscount,
+    double? changeDue,
+    String? reconciliationWarning,
+    String? rawText,
+  }) {
+    return ReceiptData(
+      merchant: merchant ?? this.merchant,
+      date: date ?? this.date,
+      amount: amount ?? this.amount,
+      items: items ?? this.items,
+      storeAddress: storeAddress ?? this.storeAddress,
+      receiptId: receiptId ?? this.receiptId,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      subtotal: subtotal ?? this.subtotal,
+      totalDiscount: totalDiscount ?? this.totalDiscount,
+      changeDue: changeDue ?? this.changeDue,
+      reconciliationWarning:
+          reconciliationWarning ?? this.reconciliationWarning,
+      rawText: rawText ?? this.rawText,
+    );
+  }
 }
 
 class ReceiptParser {

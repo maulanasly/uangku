@@ -46,6 +46,7 @@ class ReceiptDraft {
   final String note;
   final String? receiptImagePath;
   final String? warning;
+  final String? rawOcrText;
   final List<ReceiptItemDraft> items;
 
   ReceiptDraft({
@@ -57,6 +58,7 @@ class ReceiptDraft {
     required this.note,
     this.receiptImagePath,
     this.warning,
+    this.rawOcrText,
     this.items = const [],
   });
 
@@ -69,6 +71,7 @@ class ReceiptDraft {
       type: TransactionType.expense,
       note: '',
       warning: data.reconciliationWarning,
+      rawOcrText: data.rawText,
       items: [
         for (final item in data.items)
           ReceiptItemDraft(
@@ -92,6 +95,7 @@ class ReceiptDraft {
     String? note,
     String? receiptImagePath,
     String? warning,
+    String? rawOcrText,
     List<ReceiptItemDraft>? items,
   }) {
     return ReceiptDraft(
@@ -103,6 +107,7 @@ class ReceiptDraft {
       note: note ?? this.note,
       receiptImagePath: receiptImagePath ?? this.receiptImagePath,
       warning: warning ?? this.warning,
+      rawOcrText: rawOcrText ?? this.rawOcrText,
       items: items ?? this.items,
     );
   }

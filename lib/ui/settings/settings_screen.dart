@@ -48,27 +48,59 @@ class SettingsScreen extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ref.watch(themeModeProvider).when(
-              data: (mode) => SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(value: ThemeMode.light, label: Text('Light'), icon: Icon(Icons.light_mode)),
-                  ButtonSegment(value: ThemeMode.system, label: Text('System'), icon: Icon(Icons.brightness_auto)),
-                  ButtonSegment(value: ThemeMode.dark, label: Text('Dark'), icon: Icon(Icons.dark_mode)),
-                ],
-                selected: {mode},
-                onSelectionChanged: (selection) async {
-                  final selected = selection.first;
-                  final label = switch (selected) {
-                    ThemeMode.dark => 'dark',
-                    ThemeMode.light => 'light',
-                    _ => 'system',
-                  };
-                  await PreferencesService().setThemeModePref(label);
-                  ref.invalidate(themeModeProvider);
-                },
-              ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
+                  data: (mode) => SegmentedButton<ThemeMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ThemeMode.light,
+                        label: Text('Light'),
+                        icon: Icon(Icons.light_mode),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        label: Text('System'),
+                        icon: Icon(Icons.brightness_auto),
+                      ),
+                      ButtonSegment(
+                        value: ThemeMode.dark,
+                        label: Text('Dark'),
+                        icon: Icon(Icons.dark_mode),
+                      ),
+                    ],
+                    selected: {mode},
+                    onSelectionChanged: (selection) async {
+                      final selected = selection.first;
+                      final label = switch (selected) {
+                        ThemeMode.dark => 'dark',
+                        ThemeMode.light => 'light',
+                        _ => 'system',
+                      };
+                      await PreferencesService().setThemeModePref(label);
+                      ref.invalidate(themeModeProvider);
+                    },
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
+          ),
+          _SectionHeader(title: 'DEVELOPER'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: ref.watch(showOcrDebugProvider).when(
+                  data: (enabled) => SwitchListTile(
+                    title: const Text('Show OCR debug'),
+                    subtitle:
+                        const Text('Reveal raw OCR text in the scan review'),
+                    secondary: const Icon(Icons.bug_report),
+                    contentPadding: EdgeInsets.zero,
+                    value: enabled,
+                    onChanged: (value) async {
+                      await PreferencesService().setShowOcrDebug(value);
+                      ref.invalidate(showOcrDebugProvider);
+                    },
+                  ),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                ),
           ),
           _SectionHeader(title: 'DATA'),
           ListTile(
@@ -164,7 +196,9 @@ class SettingsScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: entry.$1 == current
                                     ? Theme.of(context).colorScheme.primary
-                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                    : Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               alignment: Alignment.center,

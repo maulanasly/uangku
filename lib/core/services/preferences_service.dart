@@ -4,6 +4,7 @@ class PreferencesService {
   static const _currencyKey = 'currency_symbol';
   static const _ocrModeKey = 'ocr_mode';
   static const _themeKey = 'theme_mode';
+  static const _showOcrDebugKey = 'show_ocr_debug';
 
   static const supportedSymbols = ['\$', 'Rp', '€', '£', '¥'];
   static const ocrModes = ['auto', 'gemini', 'ocrspace'];
@@ -36,5 +37,15 @@ class PreferencesService {
   Future<void> setThemeModePref(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_themeKey, mode);
+  }
+
+  Future<bool> getShowOcrDebug() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_showOcrDebugKey) ?? false;
+  }
+
+  Future<void> setShowOcrDebug(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_showOcrDebugKey, value);
   }
 }

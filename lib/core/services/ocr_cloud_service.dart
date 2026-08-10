@@ -31,7 +31,8 @@ class OcrSpaceService {
     final body = await response.stream.bytesToString();
     final decoded = jsonDecode(body) as Map<String, dynamic>;
 
-    if (decoded['IsErroredOnProcessing'] == true || decoded['ErrorMessage'] != null) {
+    if (decoded['IsErroredOnProcessing'] == true ||
+        decoded['ErrorMessage'] != null) {
       throw Exception(
         'OCR.space error: ${decoded['ErrorMessage'] ?? decoded['ErrorDetails'] ?? 'Unknown error'}',
       );
@@ -47,6 +48,6 @@ class OcrSpaceService {
       throw Exception('OCR.space returned empty text');
     }
 
-    return ReceiptParser.parseLines(text.split('\n'));
+    return ReceiptParser.parseLines(text.split('\n')).copyWith(rawText: text);
   }
 }
