@@ -8,5 +8,8 @@ void main() {
   testWidgets('App loads smoke test', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: UangkuApp()));
     expect(find.byType(MaterialApp), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
   });
 }

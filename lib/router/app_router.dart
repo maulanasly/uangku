@@ -77,7 +77,7 @@ final appRouter = GoRouter(
           ).animate(CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
-          )),
+          ),),
           child: child,
         ),
       ),

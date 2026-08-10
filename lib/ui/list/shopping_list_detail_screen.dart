@@ -218,7 +218,7 @@ class _ShoppingListDetailScreenState
 
   @override
   Widget build(BuildContext context) {
-    final lists = ref.watch(shoppingListsProvider).valueOrNull ?? [];
+    final lists = ref.watch(shoppingListsProvider).value ?? [];
     ShoppingListEntity? list;
     for (final l in lists) {
       if (l.id == widget.listId) {
@@ -227,9 +227,9 @@ class _ShoppingListDetailScreenState
       }
     }
     final itemsAsync = ref.watch(shoppingListItemsFamily(widget.listId));
-    final items = itemsAsync.valueOrNull ?? [];
+    final items = itemsAsync.value ?? [];
     final checked = items.where((i) => i.checked).toList();
-    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
     final currencyFormat = moneyFormat(currencySymbol);
     final checkedTotal = checked.fold<double>(0, (s, i) => s + i.total);
     final estTotal = items.fold<double>(0, (s, i) => s + i.total);
@@ -438,7 +438,7 @@ class _ItemEditSheetState extends ConsumerState<_ItemEditSheet> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final currencySymbol =
-        ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+        ref.watch(currencySymbolProvider).value ?? '\$';
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),

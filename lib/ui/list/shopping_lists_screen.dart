@@ -132,10 +132,10 @@ class _ListCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final itemsAsync = ref.watch(shoppingListItemsFamily(list.id));
-    final items = itemsAsync.valueOrNull ?? [];
+    final items = itemsAsync.value ?? [];
     final checkedCount = items.where((i) => i.checked).length;
     final currencyFormat =
-        moneyFormat(ref.watch(currencySymbolProvider).valueOrNull ?? '\$');
+        moneyFormat(ref.watch(currencySymbolProvider).value ?? '\$');
     final estTotal = items.fold<double>(0, (s, i) => s + i.total);
     final completed = list.completed;
 

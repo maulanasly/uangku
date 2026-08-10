@@ -185,7 +185,7 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
   @override
   Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(categoriesProvider);
-    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
     final currencyFormat = moneyFormat(currencySymbol);
 
     return Scaffold(
@@ -201,13 +201,13 @@ class _AddTransactionScreenState extends ConsumerState<AddTransactionScreen> {
             children: [
               // Category
               DropdownButtonFormField<String>(
-                initialValue: _selectedCategoryFor(categoriesAsync.valueOrNull),
+                initialValue: _selectedCategoryFor(categoriesAsync.value),
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
                 items: [
-                  for (final cat in categoriesAsync.valueOrNull ?? [])
+                  for (final cat in categoriesAsync.value ?? [])
                     DropdownMenuItem<String>(
                       value: cat.id,
                       child: Text(cat.name),

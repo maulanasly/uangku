@@ -39,13 +39,32 @@ final themeModeProvider = FutureProvider<ThemeMode>((ref) async {
   }
 });
 
-final selectedMonthProvider = StateProvider<DateTime>((ref) {
-  final now = DateTime.now();
-  return DateTime(now.year, now.month);
-});
+final selectedMonthProvider =
+    NotifierProvider<SelectedMonthNotifier, DateTime>(SelectedMonthNotifier.new);
+
+class SelectedMonthNotifier extends Notifier<DateTime> {
+  @override
+  DateTime build() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month);
+  }
+
+  void select(DateTime month) => state = DateTime(month.year, month.month);
+}
 
 final transactionQueryProvider =
-    StateProvider<TransactionQuery>((ref) => const TransactionQuery());
+    NotifierProvider<TransactionQueryNotifier, TransactionQuery>(
+  TransactionQueryNotifier.new,
+);
+
+class TransactionQueryNotifier extends Notifier<TransactionQuery> {
+  @override
+  TransactionQuery build() => const TransactionQuery();
+
+  void update(TransactionQuery Function(TransactionQuery) change) {
+    state = change(state);
+  }
+}
 
 /// Transactions that have a saved receipt image.
 final receiptTransactionsProvider =

@@ -255,7 +255,7 @@ class _ReviewTransactionBottomSheetState
                             ),
                           ),
                         ],
-                        if (ref.watch(showOcrDebugProvider).valueOrNull ==
+                        if (ref.watch(showOcrDebugProvider).value ==
                             true) ...[
                           const SizedBox(height: 12),
                           _buildOcrDebugField(),
@@ -280,7 +280,7 @@ class _ReviewTransactionBottomSheetState
                           decoration: InputDecoration(
                             labelText: 'Amount',
                             prefixText:
-                                '${ref.watch(currencySymbolProvider).valueOrNull ?? '\$'} ',
+                                '${ref.watch(currencySymbolProvider).value ?? '\$'} ',
                             border: const OutlineInputBorder(),
                             suffixIcon: _draft.items.isNotEmpty
                                 ? IconButton(
@@ -343,7 +343,7 @@ class _ReviewTransactionBottomSheetState
                             border: OutlineInputBorder(),
                           ),
                           items: [
-                            for (final cat in categoriesAsync.valueOrNull ?? [])
+                            for (final cat in categoriesAsync.value ?? [])
                               DropdownMenuItem<String>(
                                 value: cat.id,
                                 child: Text(cat.name),

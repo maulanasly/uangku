@@ -33,7 +33,7 @@ class _ReceiptCollectionScreenState
   Widget build(BuildContext context) {
     final receiptsAsync = ref.watch(receiptTransactionsProvider);
     final currencySymbol =
-        ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+        ref.watch(currencySymbolProvider).value ?? '\$';
     final currencyFormat = moneyFormat(currencySymbol);
 
     return Scaffold(
@@ -45,7 +45,7 @@ class _ReceiptCollectionScreenState
                 ? const SizedBox.shrink()
                 : IconButton(
                     icon: Icon(
-                        _showGrid ? Icons.view_carousel : Icons.grid_view),
+                        _showGrid ? Icons.view_carousel : Icons.grid_view,),
                     tooltip: _showGrid ? 'Stack view' : 'Grid view',
                     onPressed: () =>
                         setState(() => _showGrid = !_showGrid),
@@ -115,7 +115,7 @@ class _ReceiptCollectionScreenState
                             ),
                           ),
                         _buildCardStackCard(
-                            receipts[index], currencyFormat),
+                            receipts[index], currencyFormat,),
                       ],
                     );
                   },
@@ -186,7 +186,7 @@ class _ReceiptCollectionScreenState
                 color:
                     Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Icon(Icons.broken_image,
-                    size: 48, color: Colors.grey),
+                    size: 48, color: Colors.grey,),
               ),
             Padding(
               padding: const EdgeInsets.all(16),
@@ -200,12 +200,12 @@ class _ReceiptCollectionScreenState
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 15)),
+                                fontWeight: FontWeight.bold, fontSize: 15,),),
                         const SizedBox(height: 4),
                         Text(
                           DateFormat.yMMMd().format(t.date),
                           style: const TextStyle(
-                              fontSize: 12, color: Colors.grey),
+                              fontSize: 12, color: Colors.grey,),
                         ),
                       ],
                     ),
@@ -252,7 +252,7 @@ class _ReceiptCollectionScreenState
                 color:
                     Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: const Icon(Icons.broken_image,
-                    size: 32, color: Colors.grey),
+                    size: 32, color: Colors.grey,),
               ),
             Padding(
               padding: const EdgeInsets.all(8),
@@ -263,7 +263,7 @@ class _ReceiptCollectionScreenState
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 12)),
+                          fontWeight: FontWeight.w600, fontSize: 12,),),
                   const SizedBox(height: 2),
                   Text(
                     '${isExpense ? "-" : "+"}${format.format(t.amount)}',
@@ -283,7 +283,7 @@ class _ReceiptCollectionScreenState
   }
 
   void _showFullReceipt(
-      BuildContext context, TransactionEntity t, NumberFormat format) {
+      BuildContext context, TransactionEntity t, NumberFormat format,) {
     final isExpense = t.type == TransactionType.expense;
     final file = t.receiptImagePath != null ? File(t.receiptImagePath!) : null;
 
@@ -315,10 +315,10 @@ class _ReceiptCollectionScreenState
                 children: [
                   Text(t.merchant,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 18)),
+                          fontWeight: FontWeight.bold, fontSize: 18,),),
                   const SizedBox(height: 4),
                   Text(DateFormat.yMMMd().format(t.date),
-                      style: const TextStyle(color: Colors.grey)),
+                      style: const TextStyle(color: Colors.grey),),
                   const SizedBox(height: 8),
                   Text(
                     '${isExpense ? "-" : "+"}${format.format(t.amount)}',

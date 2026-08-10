@@ -24,7 +24,7 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          _SectionHeader(title: 'PREFERENCES'),
+          const _SectionHeader(title: 'PREFERENCES'),
           ListTile(
             title: const Text('Categories'),
             leading: const Icon(Icons.category),
@@ -41,9 +41,9 @@ class SettingsScreen extends ConsumerWidget {
             leading: const Icon(Icons.currency_exchange),
             onTap: () => _selectCurrency(context, ref),
           ),
-          ListTile(
-            title: const Text('Theme'),
-            leading: const Icon(Icons.palette),
+          const ListTile(
+            title: Text('Theme'),
+            leading: Icon(Icons.palette),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -82,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
                   error: (_, __) => const SizedBox.shrink(),
                 ),
           ),
-          _SectionHeader(title: 'DEVELOPER'),
+          const _SectionHeader(title: 'DEVELOPER'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ref.watch(showOcrDebugProvider).when(
@@ -102,7 +102,7 @@ class SettingsScreen extends ConsumerWidget {
                   error: (_, __) => const SizedBox.shrink(),
                 ),
           ),
-          _SectionHeader(title: 'DATA'),
+          const _SectionHeader(title: 'DATA'),
           ListTile(
             title: const Text('Export Data'),
             leading: const Icon(Icons.file_download),
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
   }
 
   Future<void> _selectCurrency(BuildContext context, WidgetRef ref) async {
-    final current = ref.read(currencySymbolProvider).valueOrNull ?? '\$';
+    final current = ref.read(currencySymbolProvider).value ?? '\$';
 
     final selected = await showModalBottomSheet<String>(
       context: context,

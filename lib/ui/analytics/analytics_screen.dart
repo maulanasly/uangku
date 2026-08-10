@@ -47,8 +47,8 @@ class AnalyticsScreen extends ConsumerWidget {
           }
 
           final data = AnalyticsCalculator.compute(transactions);
-          final categories = categoriesAsync.valueOrNull ?? [];
-          final budgets = budgetsAsync.valueOrNull ?? [];
+          final categories = categoriesAsync.value ?? [];
+          final budgets = budgetsAsync.value ?? [];
           final now = DateTime.now();
           final budgetSummary = SummaryCalculator.budgetForMonth(
             transactions,
@@ -64,7 +64,7 @@ class AnalyticsScreen extends ConsumerWidget {
             ).name;
           }
 
-          final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+          final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
           final currencyFormat = moneyFormat(currencySymbol);
           final budgetColor = Theme.of(context).colorScheme.primary;
           final totalBudget = budgetSummary.totalBudget;

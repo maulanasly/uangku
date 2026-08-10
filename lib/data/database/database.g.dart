@@ -2081,10 +2081,9 @@ final class $$CategoriesTableReferences
   $$CategoriesTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static MultiTypedResultKey<$TransactionsTable, List<TransactionEntity>>
-      _transactionsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.transactions,
-          aliasName:
-              $_aliasNameGenerator(db.categories.id, db.transactions.category));
+      _transactionsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.transactions,
+              aliasName: 'categories__id__transactions__category');
 
   $$TransactionsTableProcessedTableManager get transactionsRefs {
     final manager = $$TransactionsTableTableManager($_db, $_db.transactions)
@@ -2096,10 +2095,9 @@ final class $$CategoriesTableReferences
   }
 
   static MultiTypedResultKey<$BudgetsTable, List<BudgetEntity>>
-      _budgetsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-          db.budgets,
-          aliasName:
-              $_aliasNameGenerator(db.categories.id, db.budgets.categoryId));
+      _budgetsRefsTable(_$AppDatabase db) =>
+          MultiTypedResultKey.fromTable(db.budgets,
+              aliasName: 'categories__id__budgets__category_id');
 
   $$BudgetsTableProcessedTableManager get budgetsRefs {
     final manager = $$BudgetsTableTableManager($_db, $_db.budgets)
@@ -2390,8 +2388,7 @@ final class $$TransactionsTableReferences extends BaseReferences<_$AppDatabase,
   $$TransactionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $CategoriesTable _categoryTable(_$AppDatabase db) =>
-      db.categories.createAlias(
-          $_aliasNameGenerator(db.transactions.category, db.categories.id));
+      db.categories.createAlias('transactions__category__categories__id');
 
   $$CategoriesTableProcessedTableManager get category {
     final $_column = $_itemColumn<String>('category')!;
@@ -2408,8 +2405,7 @@ final class $$TransactionsTableReferences extends BaseReferences<_$AppDatabase,
       List<TransactionItemEntity>> _transactionItemsRefsTable(
           _$AppDatabase db) =>
       MultiTypedResultKey.fromTable(db.transactionItems,
-          aliasName: $_aliasNameGenerator(
-              db.transactions.id, db.transactionItems.transactionId));
+          aliasName: 'transactions__id__transaction_items__transaction_id');
 
   $$TransactionItemsTableProcessedTableManager get transactionItemsRefs {
     final manager =
@@ -2792,8 +2788,8 @@ final class $$TransactionItemsTableReferences extends BaseReferences<
       super.$_db, super.$_table, super.$_typedResult);
 
   static $TransactionsTable _transactionIdTable(_$AppDatabase db) =>
-      db.transactions.createAlias($_aliasNameGenerator(
-          db.transactionItems.transactionId, db.transactions.id));
+      db.transactions
+          .createAlias('transaction_items__transaction_id__transactions__id');
 
   $$TransactionsTableProcessedTableManager get transactionId {
     final $_column = $_itemColumn<String>('transaction_id')!;
@@ -3102,8 +3098,7 @@ final class $$BudgetsTableReferences
   $$BudgetsTableReferences(super.$_db, super.$_table, super.$_typedResult);
 
   static $CategoriesTable _categoryIdTable(_$AppDatabase db) =>
-      db.categories.createAlias(
-          $_aliasNameGenerator(db.budgets.categoryId, db.categories.id));
+      db.categories.createAlias('budgets__category_id__categories__id');
 
   $$CategoriesTableProcessedTableManager get categoryId {
     final $_column = $_itemColumn<String>('category_id')!;
@@ -3352,8 +3347,7 @@ final class $$ShoppingListsTableReferences extends BaseReferences<_$AppDatabase,
       List<ShoppingListItemEntity>> _shoppingListItemsRefsTable(
           _$AppDatabase db) =>
       MultiTypedResultKey.fromTable(db.shoppingListItems,
-          aliasName: $_aliasNameGenerator(
-              db.shoppingLists.id, db.shoppingListItems.listId));
+          aliasName: 'shopping_lists__id__shopping_list_items__list_id');
 
   $$ShoppingListItemsTableProcessedTableManager get shoppingListItemsRefs {
     final manager =
@@ -3603,9 +3597,8 @@ final class $$ShoppingListItemsTableReferences extends BaseReferences<
   $$ShoppingListItemsTableReferences(
       super.$_db, super.$_table, super.$_typedResult);
 
-  static $ShoppingListsTable _listIdTable(_$AppDatabase db) =>
-      db.shoppingLists.createAlias($_aliasNameGenerator(
-          db.shoppingListItems.listId, db.shoppingLists.id));
+  static $ShoppingListsTable _listIdTable(_$AppDatabase db) => db.shoppingLists
+      .createAlias('shopping_list_items__list_id__shopping_lists__id');
 
   $$ShoppingListsTableProcessedTableManager get listId {
     final $_column = $_itemColumn<String>('list_id')!;

@@ -29,7 +29,7 @@ class ExportService {
 
     // We must ensure the data is loaded. If we are triggering this from UI,
     // it's likely already loaded.
-    final transactions = asyncTransactions.valueOrNull;
+    final transactions = asyncTransactions.value;
     if (transactions == null || transactions.isEmpty) {
       throw Exception('No transactions to export');
     }
@@ -71,7 +71,7 @@ class ExportService {
   }
 
   Future<void> importTransactionsFromCsv() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['csv'],
     );
@@ -80,12 +80,7 @@ class ExportService {
     }
 
     final file = result.files.single;
-    final Uint8List bytes;
-    if (file.bytes != null) {
-      bytes = file.bytes!;
-    } else {
-      bytes = await File(file.path!).readAsBytes();
-    }
+    final bytes = await file.readAsBytes();
 
     final content = utf8.decode(bytes);
     final rows = Csv().decode(content);
