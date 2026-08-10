@@ -124,6 +124,8 @@ class ReceiptParser {
     'fee',
     'pembulatan',
     'rounding',
+    'voucher',
+    'rp',
   ];
 
   /// Rows that belong to the receipt header/metadata block.
@@ -213,6 +215,7 @@ class ReceiptParser {
     'dusun',
     'gang',
     'blok',
+    'km',
   ];
 
   /// Words used to detect item-table header rows (e.g. `ITEM QTY HARGA JUMLAH`).
@@ -231,6 +234,7 @@ class ReceiptParser {
     'subtotal',
     'sub total',
     'sub-total',
+    'jual',
   ];
 
   static const List<String> _taxKeywords = [
@@ -253,6 +257,7 @@ class ReceiptParser {
     'potongan',
     'potong',
     'promo',
+    'voucher',
   ];
 
   static const List<String> _changeKeywords = [
@@ -292,7 +297,13 @@ class ReceiptParser {
   ];
 
   static final RegExp _dateRegex = RegExp(
-    r'(\d{2})[-/](\d{2})[-/](\d{4})|(\d{4})[-/](\d{2})[-/](\d{2})',
+    r'(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})|(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})',
+  );
+
+  /// Guarded `dd[-/.]mm[-/.]yy` (2-digit year). Only ever used as a fallback
+  /// for the date field; day/month/year validity is enforced in [_matchDate].
+  static final RegExp _date2yRegex = RegExp(
+    r'(?<!\d)(\d{1,2})[-/.](\d{1,2})[-/.](\d{2})(?!\d)',
   );
 
   static final RegExp _timeRegex = RegExp(
@@ -314,7 +325,8 @@ class ReceiptParser {
 
   /// A line that is a short store/city name + 5-digit postal code
   /// (e.g. `BANDUNG 40132`). Kept strict so `GULA PASIR 15000` is not caught.
-  static final RegExp _cityZipRegex = RegExp(r'^[A-Za-z]{2,}(?: [A-Za-z]{2,})? \d{5}$');
+  static final RegExp _cityZipRegex =
+      RegExp(r'^[A-Za-z]{2,}(?: [A-Za-z]{2,})? \d{5}$');
 
   /// A US city/state/zip line (e.g. `Seattle, WA 98101`).
   static final RegExp _usCityStateZipRegex = RegExp(
@@ -322,13 +334,15 @@ class ReceiptParser {
   );
 
   static bool _isCityZip(String line) {
-    return line.length <= 30 && (_cityZipRegex.hasMatch(line) || _usCityStateZipRegex.hasMatch(line));
+    return line.length <= 30 &&
+        (_cityZipRegex.hasMatch(line) || _usCityStateZipRegex.hasMatch(line));
   }
 
   /// Numeric money token, not followed by a letter or more of the number
   /// (so `25GR`/`5kg` never yield a token, but backtracking to an empty
   /// `[\d.,]*` can't match a lone digit of `25GR`).
-  static final RegExp _moneyTokenRegex = RegExp(r'-?[\d][\d.,]*(?![.,\dA-Za-z])');
+  static final RegExp _moneyTokenRegex =
+      RegExp(r'-?[\d][\d.,]*(?![.,\dA-Za-z])');
 
   static final RegExp _receiptStrukRegex = RegExp(
     r'(struk|invoice|faktur|transaksi|trx|receipt|bill)'
@@ -355,11 +369,12 @@ class ReceiptParser {
       toIndex: totals.totalIndex ?? clean.length,
     );
 
-    final itemSum = items.fold<double>(0, (s, i) => s + i.total);
+    final itemSum = items
+        .where((i) => i.status != ReceiptItemStatus.cancelled || i.total < 0)
+        .fold<double>(0, (s, i) => s + i.total);
     String? warning;
     if (totals.subtotal != null && !_approx(itemSum, totals.subtotal!)) {
-      warning =
-          'Scanned items sum to ${_fmt(itemSum)} but the subtotal shows '
+      warning = 'Scanned items sum to ${_fmt(itemSum)} but the subtotal shows '
           '${_fmt(totals.subtotal!)}. Review the items before saving.';
     } else if (totals.amount != null &&
         totals.subtotal != null &&
@@ -470,35 +485,15 @@ class ReceiptParser {
 
   static DateTime? _scanDate(List<String> clean) {
     for (int i = 0; i < clean.length; i++) {
-      final match = _dateRegex.firstMatch(clean[i]);
-      if (match == null) continue;
-      int day;
-      int month;
-      int year;
-      try {
-        if (match.group(1) != null) {
-          day = int.parse(match.group(1)!);
-          month = int.parse(match.group(2)!);
-          year = int.parse(match.group(3)!);
-        } else {
-          year = int.parse(match.group(4)!);
-          month = int.parse(match.group(5)!);
-          day = int.parse(match.group(6)!);
-        }
-      } catch (_) {
-        continue;
-      }
-      if (month > 12 && day <= 12) {
-        final tmp = month;
-        month = day;
-        day = tmp;
-      }
-      if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+      final dm = _matchDate(clean[i]);
+      if (dm == null) continue;
 
       int? hour;
       int? minute;
       int? second;
-      final timeMatch = _timeRegex.firstMatch(clean[i]);
+      final timeMatch = _timeRegex.firstMatch(
+        dm.match.end < clean[i].length ? clean[i].substring(dm.match.end) : '',
+      );
       if (timeMatch != null) {
         hour = int.tryParse(timeMatch.group(1)!);
         minute = int.tryParse(timeMatch.group(2)!);
@@ -523,7 +518,14 @@ class ReceiptParser {
         second = null;
       }
 
-      return DateTime(year, month, day, hour ?? 0, minute ?? 0, second ?? 0);
+      return DateTime(
+        dm.year,
+        dm.month,
+        dm.day,
+        hour ?? 0,
+        minute ?? 0,
+        second ?? 0,
+      );
     }
     return null;
   }
@@ -534,7 +536,8 @@ class ReceiptParser {
       final struk = _receiptStrukRegex.firstMatch(clean[i]);
       if (struk != null) {
         final code = struk.group(2)!.trim();
-        if (code.isNotEmpty && !RegExp(r'^[a-z]+$', caseSensitive: false).hasMatch(code)) {
+        if (code.isNotEmpty &&
+            !RegExp(r'^[a-z]+$', caseSensitive: false).hasMatch(code)) {
           return code;
         }
       }
@@ -542,6 +545,12 @@ class ReceiptParser {
       if (no != null) {
         return no.group(1)!;
       }
+    }
+    // Fallback: a bare `#NNN` reference (e.g. Alfamart `#281`).
+    for (final line in clean) {
+      if (line.toLowerCase().contains('member')) continue;
+      final hash = RegExp(r'(?:^|\s)#(\d+)\b').firstMatch(line);
+      if (hash != null) return hash.group(1)!;
     }
     return null;
   }
@@ -560,7 +569,8 @@ class ReceiptParser {
         label = 'OVO';
       } else if (_containsWord(lower, 'dana')) {
         label = 'DANA';
-      } else if (_containsWord(lower, 'tunai') || _containsWord(lower, 'cash')) {
+      } else if (_containsWord(lower, 'tunai') ||
+          _containsWord(lower, 'cash')) {
         label = 'Cash';
       } else if (_containsWord(lower, 'debit')) {
         label = 'Debit';
@@ -600,7 +610,8 @@ class ReceiptParser {
         subtotalIndex = i;
       }
 
-      if (_discountKeywords.any((k) => _containsWord(lower, k))) {
+      if (_discountKeywords.any((k) => _containsWord(lower, k)) &&
+          !_isDiscountMirrorLine(line, lower)) {
         final d = _discountValue(line);
         if (d != null && d > 0) totalDiscount += d;
       }
@@ -625,9 +636,8 @@ class ReceiptParser {
     double? amount;
     int? totalIndex;
     if (candidates.isNotEmpty) {
-      final expected = subtotal == null
-          ? null
-          : subtotal - totalDiscount + taxSum;
+      final expected =
+          subtotal == null ? null : subtotal - totalDiscount + taxSum;
       var best = candidates.reduce((a, b) => a.value >= b.value ? a : b);
       if (expected != null) {
         final matching =
@@ -665,7 +675,24 @@ class ReceiptParser {
     final items = <ReceiptItem>[];
     final pending = <String>[];
 
-    void flush() => pending.clear();
+    double? pendingQty;
+    double? pendingUnit;
+    String? pendingCode;
+
+    void flushAll() {
+      pending.clear();
+      pendingQty = null;
+      pendingUnit = null;
+      pendingCode = null;
+    }
+
+    void flushNames() => pending.clear();
+
+    void resetCarry() {
+      pendingQty = null;
+      pendingUnit = null;
+      pendingCode = null;
+    }
 
     void emitPending({
       double quantity = 1,
@@ -700,28 +727,69 @@ class ReceiptParser {
       }
       final lower = raw.toLowerCase();
 
-      if (_dateRegex.hasMatch(raw)) {
-        flush();
+      // Per-item discount mirror rows (`DISC 20% X 1.0 2.400-`) fold into the
+      // preceding item instead of becoming items of their own.
+      if (_isDiscountMirrorLine(raw, lower)) {
+        if (items.isNotEmpty) {
+          final amount = _discountValue(raw);
+          if (amount != null) {
+            final last = items.removeLast();
+            items.add(
+              ReceiptItem(
+                name: last.name,
+                quantity: last.quantity,
+                unitPrice: last.unitPrice,
+                weight: last.weight,
+                total: last.total,
+                itemCode: last.itemCode,
+                discountAmount: (last.discountAmount ?? 0) + amount,
+                status: last.status,
+              ),
+            );
+          }
+        }
+        flushAll();
+        continue;
+      }
+
+      // `ITEM # <code>` carries a code forward to the next item line.
+      final carriedCode = _itemCodeLine(raw);
+      if (carriedCode != null) {
+        pendingCode = carriedCode;
+        flushNames();
+        continue;
+      }
+
+      if (_matchDate(raw) != null) {
+        flushAll();
         continue;
       }
       if (_timeOnlyRegex.hasMatch(raw)) {
-        flush();
+        flushAll();
         continue;
       }
       if (_isItemHeaderRow(raw, lower)) {
-        flush();
+        flushAll();
         continue;
       }
       if (_isCityZip(raw)) {
-        flush();
+        flushAll();
+        continue;
+      }
+      if (raw.startsWith(',') || lower.startsWith('http')) {
+        flushAll();
+        continue;
+      }
+      if (_isAddressish(raw, lower)) {
+        flushAll();
         continue;
       }
       if (_isNoiseLine(raw, lower)) {
-        flush();
+        flushAll();
         continue;
       }
       if (_barcodeRegex.hasMatch(raw)) {
-        flush();
+        flushAll();
         continue;
       }
 
@@ -742,24 +810,49 @@ class ReceiptParser {
         if (_looksLikeItemName(raw) && pending.length < 4) {
           pending.add(raw);
         } else {
-          flush();
+          flushAll();
         }
         continue;
       }
 
+      // `qty x unit` with no total — stash for the following name + total line.
+      if (parsed.total == null && parsed.unitPrice != null) {
+        pendingQty = parsed.quantity;
+        pendingUnit = parsed.unitPrice;
+        flushNames();
+        continue;
+      }
+
       if (parsed.name.isNotEmpty && parsed.total != null) {
-        items.add(
-          ReceiptItem(
-            name: parsed.name,
-            quantity: parsed.quantity,
-            unitPrice: parsed.unitPrice,
-            weight: parsed.weight,
-            total: parsed.total!,
-            itemCode: itemCode,
-            status: status,
-          ),
-        );
-        flush();
+        if (_looksLikeItemName(parsed.name)) {
+          var quantity = parsed.quantity;
+          var unitPrice = parsed.unitPrice;
+          final carriedQty = pendingQty;
+          if (quantity == 1 && unitPrice == null && carriedQty != null) {
+            quantity = carriedQty;
+            unitPrice = pendingUnit;
+          }
+          var name = parsed.name;
+          var total = parsed.total!;
+          if (status == ReceiptItemStatus.cancelled &&
+              _isCancelOnlyName(parsed.name)) {
+            if (items.isNotEmpty) name = items.last.name;
+            total = -total.abs();
+          }
+          items.add(
+            ReceiptItem(
+              name: name,
+              quantity: quantity,
+              unitPrice: unitPrice,
+              weight: parsed.weight,
+              total: total,
+              itemCode: pendingCode ?? itemCode,
+              status: status,
+            ),
+          );
+        }
+        resetCarry();
+        flushNames();
         continue;
       }
 
@@ -769,13 +862,14 @@ class ReceiptParser {
           unitPrice: parsed.unitPrice,
           weight: parsed.weight,
           total: parsed.total!,
-          itemCode: itemCode,
+          itemCode: pendingCode ?? itemCode,
           status: status,
         );
+        resetCarry();
         continue;
       }
 
-      flush();
+      flushAll();
     }
     return items;
   }
@@ -786,14 +880,12 @@ class ReceiptParser {
     final tokens = _moneyTokens(raw);
     if (tokens.isEmpty) return null;
 
-    final first = tokens.first;
+    final first = _nameBoundaryToken(raw, tokens) ?? tokens.first;
     var name = raw.substring(0, first.start).trim();
     name = name.replaceAll(RegExp(r'\s{2,}'), ' ').trim();
 
     final values = [for (final t in tokens) t.value];
-    final total = values.last;
-
-    // name + qty x unit → total
+    final total = values.last; // name + qty x unit → total
     final qtyItem = RegExp(
       r'^(.+?)\s+(\d+(?:[.,]\d+)?)\s*[xX*]\s*([\d.,]+)\s+(-?[\d.,]+)$',
     ).firstMatch(raw);
@@ -825,12 +917,12 @@ class ReceiptParser {
       final qty = _parseAmount(atMatch.group(2)!) ?? 1;
       final unit = _parseAmount(atMatch.group(3)!);
       if (_looksLikeItemName(aName) && unit != null) {
-        final explicit = atMatch.group(5) == null
-            ? null
-            : _parseAmount(atMatch.group(5)!);
+        final explicit =
+            atMatch.group(5) == null ? null : _parseAmount(atMatch.group(5)!);
         final computed = qty * unit;
-        final tot =
-            (explicit != null && _approx(explicit, computed)) ? explicit : computed;
+        final tot = (explicit != null && _approx(explicit, computed))
+            ? explicit
+            : computed;
         return _ParsedLine(
           name: aName,
           quantity: qty,
@@ -864,7 +956,7 @@ class ReceiptParser {
 
     // Continuation without a name: `qty x unit [=] total`
     final keyless = RegExp(
-      r'^(\d+(?:[.,]\d+)?)\s*[xX*]\s*([\d.,]+)\s*(?:=)?\s*(-?[\d.,]+)$',
+      r'^(\d+(?:[.,]\d+)?)\s*[xX*]\s*([\d.,]+)\s*(?:=\s*|\s+)(-?[\d.,]+)$',
     ).firstMatch(raw);
     if (keyless != null) {
       final qty = _parseAmount(keyless.group(1)!) ?? 1;
@@ -881,13 +973,26 @@ class ReceiptParser {
     }
 
     // Continuation: `x<qty> @ unit`
-    final xAt = RegExp(r'^[xX]\s*(\d+(?:[.,]\d+)?)\s*@\s*([\d.,]+)$')
-        .firstMatch(raw);
+    final xAt =
+        RegExp(r'^[xX]\s*(\d+(?:[.,]\d+)?)\s*@\s*([\d.,]+)$').firstMatch(raw);
     if (xAt != null) {
       final qty = _parseAmount(xAt.group(1)!) ?? 1;
       final unit = _parseAmount(xAt.group(2)!);
       if (unit != null) {
         return _ParsedLine(quantity: qty, unitPrice: unit, total: qty * unit);
+      }
+    }
+
+    // `qty x unit` with no total (e.g. YOGYA `2.0 X 12000`) — the total is
+    // emitted on the following name line.
+    final qtyOnly = RegExp(
+      r'^(\d+(?:[.,]\d+)?)\s*[xX*]\s*(-?[\d.,]+)$',
+    ).firstMatch(raw);
+    if (qtyOnly != null) {
+      final qty = _parseAmount(qtyOnly.group(1)!) ?? 1;
+      final unit = _parseAmount(qtyOnly.group(2)!);
+      if (unit != null) {
+        return _ParsedLine(quantity: qty, unitPrice: unit);
       }
     }
 
@@ -917,7 +1022,6 @@ class ReceiptParser {
       }
       return _ParsedLine(name: name, quantity: 1, total: b);
     }
-
     return _ParsedLine(name: name, total: total);
   }
 
@@ -927,7 +1031,7 @@ class ReceiptParser {
 
   static bool _isHeaderMetadata(String line, String lower) {
     if (_separatorRegex.hasMatch(line)) return true;
-    if (_dateRegex.hasMatch(line)) return true;
+    if (_matchDate(line) != null) return true;
     if (_timeOnlyRegex.hasMatch(line)) return true;
     if (_isItemHeaderRow(line, lower)) return true;
     if (_idKeywords.any((k) => _containsWord(lower, k))) return true;
@@ -953,7 +1057,8 @@ class ReceiptParser {
 
   static bool _isShortNameNoDigits(String line) {
     if (line.contains(RegExp(r'\d'))) return false;
-    final words = line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final words =
+        line.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     if (words.length > 2) return false;
     if (line.length > 16) return false;
     return RegExp(r'[A-Za-z]').hasMatch(line);
@@ -991,6 +1096,107 @@ class ReceiptParser {
     return true;
   }
 
+  /// Detects per-item discount mirror rows such as `DISC 20% X 1.0 2.400-`.
+  /// These carry a `%` and a qty multiplier, unlike aggregated discount rows
+  /// (`DISKON 5% -1.275`, `TOTAL DISCOUNT 4.600-`).
+  static bool _isDiscountMirrorLine(String line, String lower) {
+    if (!lower.contains('%')) return false;
+    if (!RegExp(r'\bx\s*\d').hasMatch(lower)) return false;
+    return _discountKeywords.any((k) => _containsWord(lower, k));
+  }
+
+  static final RegExp _itemCodeLineRegex = RegExp(
+    r'^item\s*[#:]\s*([A-Za-z0-9][A-Za-z0-9\-/]*)',
+    caseSensitive: false,
+  );
+
+  /// The code on an `ITEM # <code>` line, or null when the line is not one.
+  static String? _itemCodeLine(String raw) {
+    return _itemCodeLineRegex.firstMatch(raw)?.group(1)?.trim();
+  }
+
+  /// Picks the money token that ends the item-name prefix. Skips tokens glued
+  /// to letters/dots (`T/A.25`, `2X137`) and leading pack-size integers
+  /// (`FRSTEA TEH MADU 350 1 3950 3,950`) so full names are preserved.
+  static ({double value, int start, int end})? _nameBoundaryToken(
+    String raw,
+    List<({double value, int start, int end})> tokens,
+  ) {
+    for (int k = 0; k < tokens.length; k++) {
+      final t = tokens[k];
+      final token = raw.substring(t.start, t.end);
+      final formatted = RegExp(r'[.,]').hasMatch(token);
+      final glued =
+          t.start > 0 && RegExp(r'[A-Za-z.]').hasMatch(raw[t.start - 1]);
+      final remaining = tokens.length - k;
+      if (glued && !formatted) continue;
+      if (!formatted && remaining > 3) continue;
+      return t;
+    }
+    return tokens.isEmpty ? null : tokens.first;
+  }
+
+  /// Whether [name] is just a cancellation keyword (e.g. `CANCEL :`), meaning
+  /// the row is a void mirror that should inherit the preceding item's name.
+  static bool _isCancelOnlyName(String name) {
+    var rest = name;
+    for (final kw in [
+      'batal',
+      'cancel',
+      'cancelled',
+      'void',
+      'retur',
+      'refund',
+    ]) {
+      rest = rest.replaceAll(RegExp('\\b$kw\\b', caseSensitive: false), ' ');
+    }
+    rest = rest.replaceAll(RegExp(r'[\s:.,\-]+'), ' ').trim();
+    return rest.isEmpty || !_looksLikeItemName(rest);
+  }
+
+  /// Matches a plausible calendar date anywhere in [line]. Enforces day/month
+  /// validity (with US-style MM/DD swapping) and refuses money-shaped
+  /// substrings like `24.000` (zero month/year) or 2-digit years before 2010.
+  static _DateMatch? _matchDate(String line) {
+    RegExpMatch? m = _dateRegex.firstMatch(line);
+    var twoDigitYear = false;
+    if (m == null) {
+      m = _date2yRegex.firstMatch(line);
+      twoDigitYear = m != null;
+    }
+    if (m == null) return null;
+
+    int day, month, year;
+    try {
+      if (m.group(1) != null) {
+        day = int.parse(m.group(1)!);
+        month = int.parse(m.group(2)!);
+        year = int.parse(m.group(3)!);
+      } else {
+        year = int.parse(m.group(4)!);
+        month = int.parse(m.group(5)!);
+        day = int.parse(m.group(6)!);
+      }
+    } catch (_) {
+      return null;
+    }
+
+    if (twoDigitYear) {
+      if (year < 10 || year > 99) return null;
+      year += 2000;
+    }
+    if (year < 2000 || year > 2100) return null;
+
+    if (month > 12 && day <= 12) {
+      final t = month;
+      month = day;
+      day = t;
+    }
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+    return _DateMatch(m, day, month, year);
+  }
+
   static bool _approx(double a, double b) {
     final diff = (a - b).abs();
     return diff <= math.max(2.0, (a.abs() + b.abs()) * 0.01);
@@ -1006,8 +1212,8 @@ class ReceiptParser {
   // Money parsing
   // ---------------------------------------------------------------------------
 
-  static List<({double value, int start})> _moneyTokens(String line) {
-    final out = <({double value, int start})>[];
+  static List<({double value, int start, int end})> _moneyTokens(String line) {
+    final out = <({double value, int start, int end})>[];
     for (final match in _moneyTokenRegex.allMatches(line)) {
       final token = match.group(0)!;
       final end = match.end;
@@ -1015,7 +1221,7 @@ class ReceiptParser {
       final value = _parseAmount(token);
       if (value == null) continue;
       if (!_isPlausibleMoney(token, value)) continue;
-      out.add((value: value, start: match.start));
+      out.add((value: value, start: match.start, end: end));
     }
     return out;
   }
@@ -1129,10 +1335,12 @@ class ReceiptParser {
       if (rawItems is List) {
         for (final entry in rawItems) {
           if (entry is! Map) continue;
-          final name = (entry['name'] ?? entry['description'])?.toString().trim();
+          final name =
+              (entry['name'] ?? entry['description'])?.toString().trim();
           if (name == null || name.isEmpty) continue;
           final quantity = _toDouble(entry['quantity']) ?? 1;
-          final unitPrice = _toDouble(entry['unitPrice'] ?? entry['unit_price']);
+          final unitPrice =
+              _toDouble(entry['unitPrice'] ?? entry['unit_price']);
           final net =
               _toDouble(entry['net_line_total'] ?? entry['netLineTotal']);
           final total = net ??
@@ -1165,8 +1373,7 @@ class ReceiptParser {
       }
 
       return ReceiptData(
-        merchant:
-            (data['merchant'] ?? data['merchant_name'])?.toString(),
+        merchant: (data['merchant'] ?? data['merchant_name'])?.toString(),
         date: parsedDate,
         amount: parsedAmount,
         items: items,
@@ -1222,8 +1429,7 @@ class _TotalsScan {
   final double? amount;
   final int? totalIndex;
 
-  double get expected =>
-      (subtotal ?? 0) - (totalDiscount ?? 0) + taxSum;
+  double get expected => (subtotal ?? 0) - (totalDiscount ?? 0) + taxSum;
 
   const _TotalsScan({
     this.subtotal,
@@ -1249,4 +1455,13 @@ class _ParsedLine {
     this.weight,
     this.total,
   });
+}
+
+class _DateMatch {
+  final RegExpMatch match;
+  final int day;
+  final int month;
+  final int year;
+
+  const _DateMatch(this.match, this.day, this.month, this.year);
 }
