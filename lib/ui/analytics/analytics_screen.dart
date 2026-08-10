@@ -66,6 +66,9 @@ class AnalyticsScreen extends ConsumerWidget {
 
           final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
           final currencyFormat = moneyFormat(currencySymbol);
+          final budgetColor = Theme.of(context).colorScheme.primary;
+          final totalBudget = budgetSummary.totalBudget;
+          final hasBudget = totalBudget > 0;
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -80,7 +83,7 @@ class AnalyticsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
-                      const Text('Last 6 Months', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text('Spending vs Budget', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 220,
@@ -113,21 +116,47 @@ class AnalyticsScreen extends ConsumerWidget {
                               enabled: true,
                               touchTooltipData: LineTouchTooltipData(
                                 getTooltipItems: (touchedSpots) {
-                                  return touchedSpots.map((spot) {
-                                    final trendIndex = spot.spotIndex;
-                                    final month = trendIndex < data.trends.length
-                                        ? DateFormat.yMMMd().format(data.trends[trendIndex].month)
-                                        : '';
-                                    final value = currencyFormat.format(spot.y);
-                                    return LineTooltipItem(
-                                      '$month\nExpense: $value',
+                                  final items = <LineTooltipItem>[];
+                                  if (touchedSpots.isEmpty) {
+                                    return items;
+                                  }
+                                  final x = touchedSpots.first.x.toInt();
+                                  if (x < 0 || x >= data.trends.length) {
+                                    return items;
+                                  }
+                                  items.add(
+                                    LineTooltipItem(
+                                      DateFormat.yMMMd().format(data.trends[x].month),
+                                      const TextStyle(
+                                        color: Colors.black87,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  );
+                                  items.add(
+                                    LineTooltipItem(
+                                      '\nExpense: ${currencyFormat.format(data.trends[x].expense)}',
                                       const TextStyle(
                                         color: Colors.red,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
+                                    ),
+                                  );
+                                  if (hasBudget) {
+                                    items.add(
+                                      LineTooltipItem(
+                                        '\nBudget: ${currencyFormat.format(totalBudget)}',
+                                        TextStyle(
+                                          color: budgetColor,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
                                     );
-                                  }).toList();
+                                  }
+                                  return items;
                                 },
                               ),
                             ),
@@ -143,13 +172,36 @@ class AnalyticsScreen extends ConsumerWidget {
                                 isCurved: true,
                                 dotData: const FlDotData(show: true),
                               ),
+                              if (hasBudget)
+                                LineChartBarData(
+                                  spots: [
+                                    for (var i = 0; i < data.trends.length; i++)
+                                      FlSpot(i.toDouble(), totalBudget),
+                                  ],
+                                  color: budgetColor,
+                                  barWidth: 3,
+                                  dashArray: [8, 4],
+                                  isCurved: false,
+                                  dotData: const FlDotData(show: false),
+                                ),
                             ],
                           ),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      const Center(
-                        child: _LegendDot(color: Colors.red, label: 'Expense'),
+                      Center(
+                        child: Wrap(
+                          spacing: 16,
+                          children: [
+                            const _LegendDot(color: Colors.red, label: 'Expense'),
+                            if (hasBudget)
+                              _LegendDot(
+                                color: budgetColor,
+                                label: 'Budget',
+                                dashed: true,
+                              ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -614,22 +666,58 @@ class _AnalyticsCategoryBars extends StatelessWidget {
 class _LegendDot extends StatelessWidget {
   final Color color;
   final String label;
+  final bool dashed;
 
-  const _LegendDot({required this.color, required this.label});
+  const _LegendDot({required this.color, required this.label, this.dashed = false});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 12,
-          height: 12,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
+        if (dashed)
+          SizedBox(
+            width: 24,
+            height: 4,
+            child: CustomPaint(painter: _DashedSwatchPainter(color)),
+          )
+        else
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          ),
         const SizedBox(width: 6),
         Text(label),
       ],
     );
   }
+}
+
+class _DashedSwatchPainter extends CustomPainter {
+  final Color color;
+
+  const _DashedSwatchPainter(this.color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round;
+    const dashWidth = 5.0;
+    const dashGap = 3.0;
+    var x = 0.0;
+    while (x < size.width) {
+      canvas.drawLine(
+        Offset(x, size.height / 2),
+        Offset(x + dashWidth, size.height / 2),
+        paint,
+      );
+      x += dashWidth + dashGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedSwatchPainter oldDelegate) => oldDelegate.color != color;
 }

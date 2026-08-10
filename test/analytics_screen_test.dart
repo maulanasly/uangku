@@ -98,4 +98,35 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));
   });
+
+  testWidgets('shows expense vs budget legend when budgets exist', (tester) async {
+    await seedCurrentMonthExpense();
+    await repo.setBudget('cat_food', 100);
+
+    await pumpAnalytics(tester);
+
+    expect(find.text('Spending vs Budget'), findsOneWidget);
+    expect(find.text('Expense'), findsOneWidget);
+    expect(find.text('Budget'), findsOneWidget);
+    final chart = tester.widget<LineChart>(find.byType(LineChart));
+    expect(chart.data.lineBarsData.length, 2);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('hides budget line when no budgets are set', (tester) async {
+    await seedCurrentMonthExpense();
+
+    await pumpAnalytics(tester);
+
+    expect(find.text('Spending vs Budget'), findsOneWidget);
+    expect(find.text('Expense'), findsOneWidget);
+    expect(find.text('Budget'), findsNothing);
+    final chart = tester.widget<LineChart>(find.byType(LineChart));
+    expect(chart.data.lineBarsData.length, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
 }
