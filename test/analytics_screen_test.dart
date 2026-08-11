@@ -122,11 +122,56 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   });
 
+  testWidgets('shows KPI total with delta vs previous period', (tester) async {
+    final now = DateTime.now();
+    await repo.addTransaction(
+      TransactionsCompanion.insert(
+        id: 'kpi-cur',
+        date: DateTime(now.year, now.month, 5),
+        amount: 100,
+        category: 'cat_food',
+        merchant: 'Kopi Kenangan',
+        note: '',
+        type: TransactionType.expense,
+      ),
+    );
+    await repo.addTransaction(
+      TransactionsCompanion.insert(
+        id: 'kpi-prev',
+        date: DateTime.now().subtract(const Duration(days: 45)),
+        amount: 40,
+        category: 'cat_food',
+        merchant: 'Old Shop',
+        note: '',
+        type: TransactionType.expense,
+      ),
+    );
+
+    await pumpAnalytics(tester);
+
+    expect(find.textContaining('Total spending'), findsOneWidget);
+    expect(find.textContaining('vs previous period'), findsOneWidget);
+    expect(find.textContaining('↑ 150%'), findsWidgets);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
   testWidgets('shows budget vs spent card when budgets exist', (tester) async {
     await seedCurrentMonthExpense();
     await repo.setBudget('cat_food', 100);
+    final now = DateTime.now();
 
-    await pumpAnalytics(tester);
+    await pumpAnalyticsWithRange(
+      tester,
+      AnalyticsRangeSelection(
+        preset: AnalyticsRangePreset.custom,
+        customRange: DateTimeRange(
+          start: DateTime(now.year, now.month),
+          end: now,
+        ),
+      ),
+    );
 
     await tester.drag(find.byType(ListView), const Offset(0, -100));
     await tester.pumpAndSettle();
@@ -156,8 +201,18 @@ void main() {
 
   testWidgets('shows hint when no budgets are set', (tester) async {
     await seedCurrentMonthExpense();
+    final now = DateTime.now();
 
-    await pumpAnalytics(tester);
+    await pumpAnalyticsWithRange(
+      tester,
+      AnalyticsRangeSelection(
+        preset: AnalyticsRangePreset.custom,
+        customRange: DateTimeRange(
+          start: DateTime(now.year, now.month),
+          end: now,
+        ),
+      ),
+    );
 
     await tester.drag(find.byType(ListView), const Offset(0, -100));
     await tester.pumpAndSettle();
@@ -203,7 +258,7 @@ void main() {
 
     await pumpAnalytics(tester);
 
-    expect(find.text('Spending vs Budget'), findsOneWidget);
+    expect(find.text('Spending Trend'), findsOneWidget);
     expect(find.text('Expense'), findsOneWidget);
     expect(find.text('Budget'), findsNothing);
     final chart = tester.widget<LineChart>(find.byType(LineChart));

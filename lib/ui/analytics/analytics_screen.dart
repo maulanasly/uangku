@@ -110,7 +110,8 @@ class AnalyticsScreen extends ConsumerWidget {
 
           final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
           final currencyFormat = moneyFormat(currencySymbol);
-          final budgetColor = Theme.of(context).colorScheme.primary;
+          final colorScheme = Theme.of(context).colorScheme;
+          final budgetColor = colorScheme.primary;
           final totalBudget = budgetSummary.totalBudget;
           final hasBudget = totalBudget > 0;
 
@@ -119,6 +120,21 @@ class AnalyticsScreen extends ConsumerWidget {
           final categoryTrends = range == null
               ? const <CategoryTrend>[]
               : ItemAnalyticsCalculator.categoryTrendForRange(transactions, range);
+
+          final previousExpense = range == null
+              ? null
+              : _spendBetween(
+                  transactions,
+                  range.start.subtract(range.end.difference(range.start)),
+                  range.start,
+                );
+          final deltaPercent = previousExpense == null || previousExpense <= 0
+              ? null
+              : (data.totalExpense - previousExpense) / previousExpense * 100;
+          final spanDays = range != null
+              ? range.end.difference(range.start).inDays + 1
+              : _transactionSpanDays(transactions);
+          final avgPerDay = spanDays > 0 ? data.totalExpense / spanDays : 0.0;
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -130,16 +146,33 @@ class AnalyticsScreen extends ConsumerWidget {
             children: [
               const _AnalyticsRangeChips(),
               const SizedBox(height: 16),
+              _KpiCard(
+                total: data.totalExpense,
+                deltaPercent: deltaPercent,
+                avgPerDay: avgPerDay,
+                rangeLabel: _rangeLabel(range),
+                currencyFormat: currencyFormat,
+              ),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Spending vs Budget', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      Text(
+                        hasBudget && isCurrentMonthRange
+                            ? 'Spending vs Budget'
+                            : 'Spending Trend',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
                       const SizedBox(height: 2),
                       Text(
                         _rangeLabel(range),
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       SizedBox(
@@ -167,13 +200,13 @@ class AnalyticsScreen extends ConsumerWidget {
                                       }
                                       return Text(
                                         DateFormat.Md().format(data.trends[idx].month),
-                                        style: const TextStyle(fontSize: 10),
+                                        style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
                                       );
                                     }
                                     final month = data.trends[idx].month;
                                     return Text(
                                       DateFormat.MMM().format(month),
-                                      style: const TextStyle(fontSize: 10),
+                                      style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
                                     );
                                   },
                                 ),
@@ -182,6 +215,8 @@ class AnalyticsScreen extends ConsumerWidget {
                             lineTouchData: LineTouchData(
                               enabled: true,
                               touchTooltipData: LineTouchTooltipData(
+                                getTooltipColor: (spot) =>
+                                    colorScheme.surfaceContainerHighest,
                                 getTooltipItems: (touchedSpots) {
                                   final items = <LineTooltipItem>[];
                                   if (touchedSpots.isEmpty) {
@@ -194,8 +229,8 @@ class AnalyticsScreen extends ConsumerWidget {
                                   items.add(
                                     LineTooltipItem(
                                       DateFormat.yMMMd().format(data.trends[x].month),
-                                      const TextStyle(
-                                        color: Colors.black87,
+                                      TextStyle(
+                                        color: colorScheme.onSurface,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
@@ -204,8 +239,8 @@ class AnalyticsScreen extends ConsumerWidget {
                                   items.add(
                                     LineTooltipItem(
                                       '\nExpense: ${currencyFormat.format(data.trends[x].expense)}',
-                                      const TextStyle(
-                                        color: Colors.red,
+                                      TextStyle(
+                                        color: colorScheme.error,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 12,
                                       ),
@@ -234,7 +269,7 @@ class AnalyticsScreen extends ConsumerWidget {
                                   for (var i = 0; i < data.trends.length; i++)
                                     FlSpot(i.toDouble(), data.trends[i].expense),
                                 ],
-                                color: Colors.red,
+                                color: colorScheme.error,
                                 barWidth: 3,
                                 isCurved: true,
                                 dotData: const FlDotData(show: true),
@@ -260,7 +295,7 @@ class AnalyticsScreen extends ConsumerWidget {
                         child: Wrap(
                           spacing: 16,
                           children: [
-                            const _LegendDot(color: Colors.red, label: 'Expense'),
+                            _LegendDot(color: colorScheme.error, label: 'Expense'),
                             if (hasBudget && isCurrentMonthRange)
                               _LegendDot(
                                 color: budgetColor,
@@ -275,28 +310,13 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Total Spending', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text(
-                        currencyFormat.format(data.totalExpense),
-                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 18),
-                      ),
-                    ],
-                  ),
+              if (isCurrentMonthRange)
+                _BudgetVsSpentCard(
+                  summary: budgetSummary,
+                  categoryName: categoryName,
+                  currencyFormat: currencyFormat,
+                  loading: !budgetsAsync.hasValue,
                 ),
-              ),
-              const SizedBox(height: 16),
-              _BudgetVsSpentCard(
-                summary: budgetSummary,
-                categoryName: categoryName,
-                currencyFormat: currencyFormat,
-              ),
               const SizedBox(height: 16),
               Card(
                 child: Padding(
@@ -333,6 +353,7 @@ class AnalyticsScreen extends ConsumerWidget {
                 topItems: topItems,
                 categoryName: categoryName,
                 currencyFormat: currencyFormat,
+                loading: !itemsAsync.hasValue,
               ),
               const SizedBox(height: 16),
               if (range != null)
@@ -446,6 +467,40 @@ String _rangeLabel(DateTimeRange? range) {
   return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
 }
 
+/// Sums expense amounts in [transactions] that fall on or after [from] and
+/// before [to].
+double _spendBetween(
+  List<TransactionEntity> transactions,
+  DateTime from,
+  DateTime to,
+) {
+  var sum = 0.0;
+  for (final t in transactions) {
+    if (!t.date.isBefore(from) && t.date.isBefore(to)) {
+      sum += t.amount;
+    }
+  }
+  return sum;
+}
+
+/// Days between the earliest and latest transaction date, inclusive.
+int _transactionSpanDays(List<TransactionEntity> transactions) {
+  if (transactions.isEmpty) {
+    return 0;
+  }
+  var min = transactions.first.date;
+  var max = transactions.first.date;
+  for (final t in transactions) {
+    if (t.date.isBefore(min)) {
+      min = t.date;
+    }
+    if (t.date.isAfter(max)) {
+      max = t.date;
+    }
+  }
+  return max.difference(min).inDays + 1;
+}
+
 /// Thins out daily axis labels so only ~5 ticks render for long spans.
 bool _isTickVisible(int index, int length) {
   if (length <= 7) {
@@ -455,15 +510,97 @@ bool _isTickVisible(int index, int length) {
   return index % interval == 0 || index == length - 1;
 }
 
+class _KpiCard extends StatelessWidget {
+  final double total;
+  final double? deltaPercent;
+  final double avgPerDay;
+  final String rangeLabel;
+  final NumberFormat currencyFormat;
+
+  const _KpiCard({
+    required this.total,
+    required this.deltaPercent,
+    required this.avgPerDay,
+    required this.rangeLabel,
+    required this.currencyFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final delta = deltaPercent;
+    final isUp = delta != null && delta > 0;
+    final deltaLabel = delta == null
+        ? 'No prior period to compare'
+        : '${isUp ? '↑' : '↓'} ${(delta.abs()).toStringAsFixed(0)}% '
+            'vs previous period';
+    final deltaColor = delta == null
+        ? colorScheme.onSurfaceVariant
+        : isUp
+            ? colorScheme.error
+            : colorScheme.secondary;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Total spending · $rangeLabel',
+              style: TextStyle(
+                fontSize: 12,
+                color: colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              currencyFormat.format(total),
+              style: TextStyle(
+                fontSize: 30,
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.trending_up,
+                  size: 16,
+                  color: deltaColor,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    deltaLabel,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: deltaColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _TopItemsCard extends StatelessWidget {
   final Map<String, List<CategoryItemStat>> topItems;
   final String Function(String) categoryName;
   final NumberFormat currencyFormat;
+  final bool loading;
 
   const _TopItemsCard({
     required this.topItems,
     required this.categoryName,
     required this.currencyFormat,
+    required this.loading,
   });
 
   @override
@@ -482,13 +619,27 @@ class _TopItemsCard extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            if (sorted.isEmpty)
+            if (loading)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else if (sorted.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
                   child: Text(
                     'No item data yet',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )
@@ -507,7 +658,10 @@ class _TopItemsCard extends StatelessWidget {
                   ),
                   subtitle: Text(
                     'Top ${sorted[i].value.length} items',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   children: [
                     for (var j = 0; j < sorted[i].value.length; j++)
@@ -580,7 +734,10 @@ class _TopItemRow extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             'x${stat.purchaseCount}',
-            style: const TextStyle(fontSize: 12, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(width: 8),
           SizedBox(
@@ -625,16 +782,22 @@ class _CategoryTrendCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               '${DateFormat.yMMM().format(range.start)} vs ${DateFormat.yMMM().format(range.end)}',
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             if (trends.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 24),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
                     'No spending in the selected period',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )
@@ -670,8 +833,9 @@ class _CategoryTrendRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final isUp = trend.delta > 0;
-    final deltaColor = isUp ? Colors.red.shade700 : Colors.green.shade700;
+    final deltaColor = isUp ? colorScheme.error : colorScheme.secondary;
     final String deltaLabel;
     if (trend.isNew) {
       deltaLabel = 'New';
@@ -699,7 +863,7 @@ class _CategoryTrendRow extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           '${currencyFormat.format(trend.previous)} → ${currencyFormat.format(trend.current)}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(width: 8),
         SizedBox(
@@ -723,16 +887,19 @@ class _BudgetVsSpentCard extends StatelessWidget {
   final BudgetSummary summary;
   final String Function(String) categoryName;
   final NumberFormat currencyFormat;
+  final bool loading;
 
   const _BudgetVsSpentCard({
     required this.summary,
     required this.categoryName,
     required this.currencyFormat,
+    required this.loading,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (summary.totalBudget <= 0) {
+    final colorScheme = Theme.of(context).colorScheme;
+    if (loading) {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16.0),
@@ -743,10 +910,34 @@ class _BudgetVsSpentCard extends StatelessWidget {
                 'Budget vs Spent',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 16),
+              Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (summary.totalBudget <= 0) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Budget vs Spent',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
               Text(
                 'Set monthly budgets in Settings > Budgets',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -771,9 +962,9 @@ class _BudgetVsSpentCard extends StatelessWidget {
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 2),
-            const Text(
+            Text(
               'This month',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: 12),
             for (var i = 0; i < budgetedCategories.length; i++) ...[
@@ -806,8 +997,8 @@ class _BudgetVsSpentCard extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                       color: summary.remaining >= 0
-                          ? Colors.green.shade700
-                          : Colors.red.shade700,
+                          ? colorScheme.secondary
+                          : colorScheme.error,
                     ),
                   ),
                 ],
@@ -835,9 +1026,10 @@ class _BudgetVsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final over = spent > budget;
     final ratio = budget > 0 ? spent / budget : 0.0;
-    final color = over ? Colors.red.shade400 : Theme.of(context).colorScheme.primary;
+    final color = over ? colorScheme.error : colorScheme.primary;
 
     return Column(
       children: [
@@ -875,7 +1067,7 @@ class _BudgetVsRow extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: Text(
               'Over by ${currencyFormat.format(spent - budget)}',
-              style: const TextStyle(fontSize: 11, color: Colors.red),
+              style: TextStyle(fontSize: 11, color: colorScheme.error),
             ),
           ),
         ],
@@ -963,7 +1155,10 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
                 centerTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -1002,6 +1197,7 @@ class _AnalyticsCategoryBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final total = spending.values.fold<double>(0, (a, b) => a + b);
     final sorted = spending.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
@@ -1015,6 +1211,7 @@ class _AnalyticsCategoryBars extends StatelessWidget {
             amount: sorted[i].value,
             total: total,
             color: _palette[i % _palette.length],
+            mutedColor: colorScheme.onSurfaceVariant,
           ),
         ],
         const SizedBox(height: 12),
@@ -1044,6 +1241,7 @@ class _AnalyticsCategoryBars extends StatelessWidget {
     required double amount,
     required double total,
     required Color color,
+    required Color mutedColor,
   }) {
     final fraction = total > 0 ? amount / total : 0.0;
     final percent = (fraction * 100).toStringAsFixed(0);
@@ -1101,7 +1299,10 @@ class _AnalyticsCategoryBars extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedColor,
+              ),
             ),
           ),
         ],
