@@ -29,7 +29,7 @@ void main() {
   final lastMonth = DateTime(now.year, now.month - 1);
 
   group('AnalyticsCalculator.compute', () {
-    test('aggregates expense per month within the window', () {
+    test('aggregates expense per day within a short window', () {
       final transactions = [
         _tx(id: '1', date: thisMonth, amount: 100, category: 'cat_food'),
         _tx(id: '3', date: lastMonth, amount: 50, category: 'cat_transport'),
@@ -41,10 +41,51 @@ void main() {
         range: DateTimeRange(start: lastMonth, end: thisMonth),
       );
 
-      expect(data.trends.length, 2);
+      expect(data.isDaily, isTrue);
+      expect(
+        data.trends.length,
+        thisMonth.difference(lastMonth).inDays + 1,
+      );
       final currentTrend = data.trends.last;
+      expect(currentTrend.month, thisMonth);
       expect(currentTrend.expense, 100);
       expect(data.totalExpense, 150);
+    });
+
+    test('buckets by month for ranges longer than the daily threshold', () {
+      final start = DateTime(now.year - 1, now.month, 1);
+      final transactions = [
+        _tx(id: '1', date: start, amount: 100, category: 'cat_food'),
+        _tx(id: '2', date: thisMonth, amount: 50, category: 'cat_food'),
+      ];
+
+      final data = AnalyticsCalculator.compute(
+        transactions,
+        range: DateTimeRange(start: start, end: thisMonth),
+      );
+
+      expect(data.isDaily, isFalse);
+      expect(data.trends.length, 13);
+      expect(data.totalExpense, 150);
+    });
+
+    test('last-30-days window buckets every calendar day', () {
+      final start = now.subtract(const Duration(days: 30));
+      final transactions = [
+        _tx(id: '1', date: start, amount: 10, category: 'cat_food'),
+        _tx(id: '2', date: now, amount: 20, category: 'cat_food'),
+      ];
+
+      final data = AnalyticsCalculator.compute(
+        transactions,
+        range: DateTimeRange(start: start, end: now),
+      );
+
+      expect(data.isDaily, isTrue);
+      expect(data.trends.length, 31);
+      expect(data.trends.first.expense, 10);
+      expect(data.trends.last.expense, 20);
+      expect(data.totalExpense, 30);
     });
 
     test('ignores transactions outside the window', () {

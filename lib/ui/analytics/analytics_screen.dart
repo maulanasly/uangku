@@ -95,6 +95,10 @@ class AnalyticsScreen extends ConsumerWidget {
             budgets,
             DateTime(now.year, now.month),
           );
+          final isCurrentMonthRange = range != null &&
+              range.start.year == now.year &&
+              range.start.month == now.month &&
+              range.end.month == range.start.month;
           String categoryName(String id) {
             return categories.firstWhere(
               (c) => c.id == id,
@@ -153,10 +157,20 @@ class AnalyticsScreen extends ConsumerWidget {
                                   showTitles: true,
                                   reservedSize: 28,
                                   getTitlesWidget: (value, meta) {
-                                    if (value.toInt() < 0 || value.toInt() >= data.trends.length) {
+                                    final idx = value.toInt();
+                                    if (idx < 0 || idx >= data.trends.length) {
                                       return const SizedBox.shrink();
                                     }
-                                    final month = data.trends[value.toInt()].month;
+                                    if (data.isDaily) {
+                                      if (!_isTickVisible(idx, data.trends.length)) {
+                                        return const SizedBox.shrink();
+                                      }
+                                      return Text(
+                                        DateFormat.Md().format(data.trends[idx].month),
+                                        style: const TextStyle(fontSize: 10),
+                                      );
+                                    }
+                                    final month = data.trends[idx].month;
                                     return Text(
                                       DateFormat.MMM().format(month),
                                       style: const TextStyle(fontSize: 10),
@@ -197,7 +211,7 @@ class AnalyticsScreen extends ConsumerWidget {
                                       ),
                                     ),
                                   );
-                                  if (hasBudget) {
+                                  if (hasBudget && isCurrentMonthRange) {
                                     items.add(
                                       LineTooltipItem(
                                         '\nBudget: ${currencyFormat.format(totalBudget)}',
@@ -225,7 +239,7 @@ class AnalyticsScreen extends ConsumerWidget {
                                 isCurved: true,
                                 dotData: const FlDotData(show: true),
                               ),
-                              if (hasBudget)
+                              if (hasBudget && isCurrentMonthRange)
                                 LineChartBarData(
                                   spots: [
                                     for (var i = 0; i < data.trends.length; i++)
@@ -247,7 +261,7 @@ class AnalyticsScreen extends ConsumerWidget {
                           spacing: 16,
                           children: [
                             const _LegendDot(color: Colors.red, label: 'Expense'),
-                            if (hasBudget)
+                            if (hasBudget && isCurrentMonthRange)
                               _LegendDot(
                                 color: budgetColor,
                                 label: 'Budget',
@@ -295,7 +309,7 @@ class AnalyticsScreen extends ConsumerWidget {
                       if (data.categorySpending.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 24),
-                          child: Center(child: Text('No expenses in the last 6 months')),
+                          child: Center(child: Text('No spending in this range')),
                         )
                       else ...[
                         _CategoryDonutChart(
@@ -430,6 +444,15 @@ String _rangeLabel(DateTimeRange? range) {
   }
   final fmt = DateFormat.yMMMd();
   return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
+}
+
+/// Thins out daily axis labels so only ~5 ticks render for long spans.
+bool _isTickVisible(int index, int length) {
+  if (length <= 7) {
+    return true;
+  }
+  final interval = (length / 5).ceil();
+  return index % interval == 0 || index == length - 1;
 }
 
 class _TopItemsCard extends StatelessWidget {

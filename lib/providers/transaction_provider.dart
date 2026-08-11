@@ -130,7 +130,7 @@ final analyticsRangeProvider =
 class AnalyticsRangeNotifier extends Notifier<AnalyticsRangeSelection> {
   @override
   AnalyticsRangeSelection build() =>
-      const AnalyticsRangeSelection(preset: AnalyticsRangePreset.allTime);
+      const AnalyticsRangeSelection(preset: AnalyticsRangePreset.last30Days);
 
   void selectPreset(AnalyticsRangePreset preset) {
     state = AnalyticsRangeSelection(preset: preset);

@@ -32,7 +32,7 @@ void main() {
     await repo.addTransactionWithItems(
       TransactionsCompanion.insert(
         id: 'n-1',
-        date: DateTime(2026, 1, 5),
+        date: DateTime.now().subtract(const Duration(days: 3)),
         amount: 30,
         category: 'cat_food',
         merchant: 'Alfamart',
