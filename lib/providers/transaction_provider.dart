@@ -81,6 +81,12 @@ final transactionItemsFamily =
   },
 );
 
+final allTransactionItemsProvider =
+    FutureProvider<List<TransactionItemEntity>>((ref) {
+  final repo = ref.watch(transactionRepositoryProvider);
+  return repo.getAllItems();
+});
+
 final filteredTransactionsProvider =
     StreamProvider<List<TransactionEntity>>((ref) {
   final query = ref.watch(transactionQueryProvider);

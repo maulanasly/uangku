@@ -39,6 +39,40 @@ void main() {
     );
   }
 
+  Future<void> seedExpenseWithItems({
+    required String id,
+    required DateTime date,
+    required double amount,
+    required String category,
+    required List<({String name, double total})> items,
+  }) async {
+    final companion = TransactionsCompanion.insert(
+      id: id,
+      date: date,
+      amount: amount,
+      category: category,
+      merchant: 'Merchant $id',
+      note: '',
+      type: TransactionType.expense,
+    );
+    if (items.isEmpty) {
+      await repo.addTransaction(companion);
+      return;
+    }
+    await repo.addTransactionWithItems(
+      companion,
+      [
+        for (var i = 0; i < items.length; i++)
+          TransactionItemsCompanion.insert(
+            id: '$id-item$i',
+            transactionId: id,
+            name: items[i].name,
+            total: items[i].total,
+          ),
+      ],
+    );
+  }
+
   Future<void> pumpAnalytics(WidgetTester tester) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -125,6 +159,82 @@ void main() {
     expect(find.text('Budget'), findsNothing);
     final chart = tester.widget<LineChart>(find.byType(LineChart));
     expect(chart.data.lineBarsData.length, 1);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('shows top items by category when items exist', (tester) async {
+    final now = DateTime.now();
+    await seedExpenseWithItems(
+      id: 'ti-1',
+      date: DateTime(now.year, now.month, 3),
+      amount: 100,
+      category: 'cat_food',
+      items: [
+        (name: 'Nasi Goreng', total: 45),
+        (name: 'Ayam Bakar', total: 35),
+        (name: 'Es Teh', total: 20),
+      ],
+    );
+
+    await pumpAnalytics(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Top Items by Category'), findsOneWidget);
+    expect(find.text('No item data yet'), findsNothing);
+
+    await tester.tap(find.widgetWithText(ExpansionTile, 'Food & Dining'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nasi Goreng'), findsOneWidget);
+    expect(find.text('Ayam Bakar'), findsOneWidget);
+    expect(find.text('Es Teh'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('shows no item data hint when transactions have no items', (tester) async {
+    await seedCurrentMonthExpense();
+
+    await pumpAnalytics(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1400));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Top Items by Category'), findsOneWidget);
+    expect(find.text('No item data yet'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('shows category trend delta for selected vs previous month', (tester) async {
+    final now = DateTime.now();
+    await seedCurrentMonthExpense();
+    await repo.addTransaction(
+      TransactionsCompanion.insert(
+        id: 'tr-prev',
+        date: DateTime(now.year, now.month - 1, 10),
+        amount: 40,
+        category: 'cat_food',
+        merchant: 'Prev Shop',
+        note: '',
+        type: TransactionType.expense,
+      ),
+    );
+
+    await pumpAnalytics(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1600));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Category Trend'), findsOneWidget);
+    expect(find.textContaining(' vs '), findsOneWidget);
+    expect(find.text('↑ 50%'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));
