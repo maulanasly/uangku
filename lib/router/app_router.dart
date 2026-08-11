@@ -10,6 +10,10 @@ import '../ui/analytics/analytics_screen.dart';
 import '../ui/transactions/add_transaction_screen.dart';
 import '../ui/transactions/transactions_screen.dart';
 import '../ui/receipts/receipt_collection_screen.dart';
+import '../ui/list/shopping_lists_screen.dart';
+import '../ui/list/shopping_list_detail_screen.dart';
+import '../ui/prices/item_price_history_screen.dart';
+import '../ui/prices/item_price_detail_screen.dart';
 import '../ui/shell/bottom_nav_shell.dart';
 import '../data/database/database.dart';
 
@@ -47,6 +51,14 @@ final appRouter = GoRouter(
         StatefulShellBranch(
           routes: [
             GoRoute(
+              path: '/lists',
+              builder: (context, state) => const ShoppingListsScreen(),
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
               path: '/settings',
               builder: (context, state) => const SettingsScreen(),
             ),
@@ -67,7 +79,7 @@ final appRouter = GoRouter(
           ).animate(CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
-          )),
+          ),),
           child: child,
         ),
       ),
@@ -90,6 +102,20 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/receipts',
       builder: (context, state) => const ReceiptCollectionScreen(),
+    ),
+    GoRoute(
+      path: '/shopping_list/:id',
+      builder: (context, state) =>
+          ShoppingListDetailScreen(listId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/item_prices',
+      builder: (context, state) => const ItemPriceHistoryScreen(),
+    ),
+    GoRoute(
+      path: '/item_price_detail',
+      builder: (context, state) =>
+          ItemPriceDetailScreen(itemName: state.extra as String),
     ),
   ],
 );

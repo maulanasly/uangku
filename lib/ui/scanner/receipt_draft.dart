@@ -45,6 +45,8 @@ class ReceiptDraft {
   final TransactionType type;
   final String note;
   final String? receiptImagePath;
+  final String? warning;
+  final String? rawOcrText;
   final List<ReceiptItemDraft> items;
 
   ReceiptDraft({
@@ -55,6 +57,8 @@ class ReceiptDraft {
     required this.type,
     required this.note,
     this.receiptImagePath,
+    this.warning,
+    this.rawOcrText,
     this.items = const [],
   });
 
@@ -66,6 +70,8 @@ class ReceiptDraft {
       category: 'cat_food',
       type: TransactionType.expense,
       note: '',
+      warning: data.reconciliationWarning,
+      rawOcrText: data.rawText,
       items: [
         for (final item in data.items)
           ReceiptItemDraft(
@@ -88,6 +94,8 @@ class ReceiptDraft {
     TransactionType? type,
     String? note,
     String? receiptImagePath,
+    String? warning,
+    String? rawOcrText,
     List<ReceiptItemDraft>? items,
   }) {
     return ReceiptDraft(
@@ -98,6 +106,8 @@ class ReceiptDraft {
       type: type ?? this.type,
       note: note ?? this.note,
       receiptImagePath: receiptImagePath ?? this.receiptImagePath,
+      warning: warning ?? this.warning,
+      rawOcrText: rawOcrText ?? this.rawOcrText,
       items: items ?? this.items,
     );
   }

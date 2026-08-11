@@ -33,7 +33,7 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
   }
 
   void _update(TransactionQuery Function(TransactionQuery) change) {
-    ref.read(transactionQueryProvider.notifier).state = change(ref.read(transactionQueryProvider));
+    ref.read(transactionQueryProvider.notifier).update(change);
   }
 
   @override
@@ -41,8 +41,8 @@ class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
     final query = ref.watch(transactionQueryProvider);
     final transactionsAsync = ref.watch(filteredTransactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
-    final categories = categoriesAsync.valueOrNull ?? [];
-    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final categories = categoriesAsync.value ?? [];
+    final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Transactions')),

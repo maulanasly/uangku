@@ -20,7 +20,7 @@ class DashboardScreen extends ConsumerWidget {
     final transactionsAsync = ref.watch(transactionsProvider);
     final categoriesAsync = ref.watch(categoriesProvider);
     final budgetsAsync = ref.watch(budgetsProvider);
-    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
     final selectedMonth = ref.watch(selectedMonthProvider);
 
     return Scaffold(
@@ -45,7 +45,7 @@ class DashboardScreen extends ConsumerWidget {
             );
           }
 
-          final budgets = budgetsAsync.valueOrNull ?? [];
+          final budgets = budgetsAsync.value ?? [];
           final budgetSummary = SummaryCalculator.budgetForMonth(
             transactions,
             budgets,
@@ -53,7 +53,7 @@ class DashboardScreen extends ConsumerWidget {
           );
           final monthTransactions = SummaryCalculator.filterByMonth(transactions, selectedMonth);
 
-          final categories = categoriesAsync.valueOrNull ?? [];
+          final categories = categoriesAsync.value ?? [];
           String categoryName(String id) {
             return categories.firstWhere(
               (c) => c.id == id,
@@ -82,11 +82,11 @@ class DashboardScreen extends ConsumerWidget {
                     onHorizontalDragEnd: (details) {
                       if (details.primaryVelocity == null) return;
                       if (details.primaryVelocity! < -30) {
-                        ref.read(selectedMonthProvider.notifier).state =
-                            SummaryCalculator.shiftMonth(selectedMonth, 1);
+                        ref.read(selectedMonthProvider.notifier)
+                            .select(SummaryCalculator.shiftMonth(selectedMonth, 1));
                       } else if (details.primaryVelocity! > 30) {
-                        ref.read(selectedMonthProvider.notifier).state =
-                            SummaryCalculator.shiftMonth(selectedMonth, -1);
+                        ref.read(selectedMonthProvider.notifier)
+                            .select(SummaryCalculator.shiftMonth(selectedMonth, -1));
                       }
                     },
                     child: Card(
@@ -98,8 +98,8 @@ class DashboardScreen extends ConsumerWidget {
                             children: [
                               IconButton(
                                 icon: const Icon(Icons.chevron_left),
-                                onPressed: () => ref.read(selectedMonthProvider.notifier).state =
-                                    SummaryCalculator.shiftMonth(selectedMonth, -1),
+                                onPressed: () => ref.read(selectedMonthProvider.notifier)
+                                    .select(SummaryCalculator.shiftMonth(selectedMonth, -1)),
                               ),
                               Expanded(
                                 child: Column(
@@ -112,8 +112,8 @@ class DashboardScreen extends ConsumerWidget {
                                       TextButton(
                                         onPressed: () {
                                           final now = DateTime.now();
-                                          ref.read(selectedMonthProvider.notifier).state =
-                                              DateTime(now.year, now.month);
+                                          ref.read(selectedMonthProvider.notifier)
+                                              .select(DateTime(now.year, now.month));
                                         },
                                         child: const Text('Back to today'),
                                       ),
@@ -122,8 +122,8 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                               IconButton(
                                 icon: const Icon(Icons.chevron_right),
-                                onPressed: () => ref.read(selectedMonthProvider.notifier).state =
-                                    SummaryCalculator.shiftMonth(selectedMonth, 1),
+                                onPressed: () => ref.read(selectedMonthProvider.notifier)
+                                    .select(SummaryCalculator.shiftMonth(selectedMonth, 1)),
                               ),
                             ],
                           ),
@@ -236,7 +236,7 @@ class DashboardScreen extends ConsumerWidget {
                           final repo = ref.read(transactionRepositoryProvider);
                           final items = ref
                                   .read(transactionItemsFamily(t.id))
-                                  .valueOrNull ??
+                                  .value ??
                               const <TransactionItemEntity>[];
                           repo.deleteTransaction(t.id);
                           ScaffoldMessenger.of(context).clearSnackBars();

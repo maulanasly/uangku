@@ -35,7 +35,7 @@ class BudgetsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categoriesAsync = ref.watch(categoriesProvider);
     final budgetsAsync = ref.watch(budgetsProvider);
-    final currencySymbol = ref.watch(currencySymbolProvider).valueOrNull ?? '\$';
+    final currencySymbol = ref.watch(currencySymbolProvider).value ?? '\$';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Monthly Budgets')),
@@ -44,7 +44,7 @@ class BudgetsScreen extends ConsumerWidget {
           if (categories.isEmpty) {
             return const Center(child: Text('No categories yet'));
           }
-          final budgets = budgetsAsync.valueOrNull ?? [];
+          final budgets = budgetsAsync.value ?? [];
           final budgetByCategory = {
             for (final b in budgets) b.categoryId: b.monthlyLimit,
           };
@@ -97,7 +97,7 @@ class BudgetsScreen extends ConsumerWidget {
           ? current.toInt().toString()
           : current?.toString() ?? '',
     );
-    final currencySymbol = ref.read(currencySymbolProvider).valueOrNull ?? '\$';
+    final currencySymbol = ref.read(currencySymbolProvider).value ?? '\$';
 
     final saved = await showDialog<bool>(
       context: context,

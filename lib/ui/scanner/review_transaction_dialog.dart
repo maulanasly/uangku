@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -10,14 +11,20 @@ import '../../data/database/database.dart';
 import '../../providers/transaction_provider.dart';
 import 'receipt_draft.dart';
 
-Future<({TransactionsCompanion transaction, List<TransactionItemsCompanion> items})?>
-    showReviewTransactionDialog(
+Future<
+    ({
+      TransactionsCompanion transaction,
+      List<TransactionItemsCompanion> items
+    })?> showReviewTransactionDialog(
   BuildContext context, {
   required ReceiptDraft draft,
   String? cloudProvider,
 }) {
   return showModalBottomSheet<
-      ({TransactionsCompanion transaction, List<TransactionItemsCompanion> items})>(
+      ({
+        TransactionsCompanion transaction,
+        List<TransactionItemsCompanion> items
+      })>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -211,6 +218,48 @@ class _ReviewTransactionBottomSheetState
                           _ocrLabel(),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
+                        if (_draft.warning != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .errorContainer
+                                  .withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 20,
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    _draft.warning!,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodySmall
+                                        ?.copyWith(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .onErrorContainer,
+                                        ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (ref.watch(showOcrDebugProvider).value ==
+                            true) ...[
+                          const SizedBox(height: 12),
+                          _buildOcrDebugField(),
+                        ],
                         const SizedBox(height: 20),
                         TextFormField(
                           controller: _merchantController,
@@ -231,7 +280,7 @@ class _ReviewTransactionBottomSheetState
                           decoration: InputDecoration(
                             labelText: 'Amount',
                             prefixText:
-                                '${ref.watch(currencySymbolProvider).valueOrNull ?? '\$'} ',
+                                '${ref.watch(currencySymbolProvider).value ?? '\$'} ',
                             border: const OutlineInputBorder(),
                             suffixIcon: _draft.items.isNotEmpty
                                 ? IconButton(
@@ -256,8 +305,10 @@ class _ReviewTransactionBottomSheetState
                         const SizedBox(height: 16),
                         Row(
                           children: [
-                            Text('Items',
-                                style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                              'Items',
+                              style: Theme.of(context).textTheme.titleSmall,
+                            ),
                             const Spacer(),
                             TextButton.icon(
                               onPressed: _addItem,
@@ -292,7 +343,7 @@ class _ReviewTransactionBottomSheetState
                             border: OutlineInputBorder(),
                           ),
                           items: [
-                            for (final cat in categoriesAsync.valueOrNull ?? [])
+                            for (final cat in categoriesAsync.value ?? [])
                               DropdownMenuItem<String>(
                                 value: cat.id,
                                 child: Text(cat.name),
@@ -301,7 +352,9 @@ class _ReviewTransactionBottomSheetState
                           onChanged: (value) {
                             if (value != null) {
                               setState(
-                                  () => _draft = _draft.copyWith(category: value));
+                                () => _draft =
+                                    _draft.copyWith(category: value),
+                              );
                             }
                           },
                         ),
@@ -359,6 +412,50 @@ class _ReviewTransactionBottomSheetState
     );
   }
 
+  Widget _buildOcrDebugField() {
+    final raw = _draft.rawOcrText;
+    final hasRaw = raw != null && raw.trim().isNotEmpty;
+    return ExpansionTile(
+      tilePadding: EdgeInsets.zero,
+      leading: const Icon(Icons.bug_report, size: 20),
+      title: const Text(
+        'OCR debug',
+        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+      ),
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      children: [
+        TextField(
+          controller: TextEditingController(text: raw ?? ''),
+          readOnly: true,
+          maxLines: 8,
+          minLines: 4,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            alignLabelWithHint: true,
+            hintText:
+                hasRaw ? null : 'No raw OCR text available for this mode.',
+            suffixIcon: hasRaw
+                ? IconButton(
+                    icon: const Icon(Icons.copy, size: 18),
+                    tooltip: 'Copy OCR text',
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: raw));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('OCR text copied')),
+                        );
+                      }
+                    },
+                  )
+                : null,
+          ),
+        ),
+      ],
+    );
+  }
+
   List<Widget> _buildItemEditors() {
     if (_draft.items.isEmpty) {
       return [
@@ -387,7 +484,8 @@ class _ReviewTransactionBottomSheetState
                   hintText: 'Item name',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 ),
                 onChanged: (v) => _updateItem(
                   i,
@@ -414,13 +512,16 @@ class _ReviewTransactionBottomSheetState
                   hintText: 'Qty',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                 ),
                 keyboardType: TextInputType.number,
                 onChanged: (v) {
                   final qty = double.tryParse(v) ?? 1;
                   final unitPrice = item.unitPrice ??
-                      (item.quantity > 0 ? item.total / item.quantity : item.total);
+                      (item.quantity > 0
+                          ? item.total / item.quantity
+                          : item.total);
                   _updateItem(
                     i,
                     ReceiptItemDraft(
@@ -447,9 +548,11 @@ class _ReviewTransactionBottomSheetState
                   hintText: 'Total',
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 8, vertical: 10),
                 ),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 onChanged: (v) {
                   final total = double.tryParse(v) ?? 0;
                   _updateItem(

@@ -146,4 +146,57 @@ class TransactionRepository {
   Future<void> deleteBudget(String categoryId) {
     return (_db.delete(_db.budgets)..where((b) => b.categoryId.equals(categoryId))).go();
   }
+
+  // Shopping lists
+  Stream<List<ShoppingListEntity>> watchShoppingLists() {
+    final query = _db.select(_db.shoppingLists)
+      ..orderBy([(l) => OrderingTerm.desc(l.date)]);
+    return query.watch();
+  }
+
+  Stream<List<ShoppingListItemEntity>> watchShoppingListItems(String listId) {
+    return (_db.select(_db.shoppingListItems)
+          ..where((i) => i.listId.equals(listId))
+          ..orderBy([(i) => OrderingTerm.asc(i.position)]))
+        .watch();
+  }
+
+  Future<void> addShoppingListWithItems(
+    ShoppingListsCompanion list,
+    List<ShoppingListItemsCompanion> items,
+  ) {
+    return _db.transaction(() async {
+      await _db.into(_db.shoppingLists).insert(list);
+      for (final item in items) {
+        await _db.into(_db.shoppingListItems).insert(item);
+      }
+    });
+  }
+
+  Future<void> addShoppingListItem(ShoppingListItemsCompanion item) {
+    return _db.into(_db.shoppingListItems).insert(item);
+  }
+
+  Future<void> updateShoppingList(ShoppingListEntity list) {
+    return _db.update(_db.shoppingLists).replace(list);
+  }
+
+  Future<void> updateShoppingListItem(ShoppingListItemsCompanion item) {
+    return (_db.update(_db.shoppingListItems)
+          ..where((i) => i.id.equals(item.id.value)))
+        .write(item);
+  }
+
+  Future<void> deleteShoppingList(String id) {
+    return (_db.delete(_db.shoppingLists)..where((l) => l.id.equals(id))).go();
+  }
+
+  Future<void> deleteShoppingListItems(List<String> ids) {
+    if (ids.isEmpty) return Future.value();
+    return _db.transaction(() async {
+      for (final id in ids) {
+        await (_db.delete(_db.shoppingListItems)..where((i) => i.id.equals(id))).go();
+      }
+    });
+  }
 }

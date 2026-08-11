@@ -36,8 +36,11 @@ class GeminiService {
 
     return _generateReceiptData(imagePart);
   }
-  
-  Future<ReceiptData> parseReceiptFromBytes(Uint8List bytes, {String mimeType = 'image/jpeg'}) async {
+
+  Future<ReceiptData> parseReceiptFromBytes(
+    Uint8List bytes, {
+    String mimeType = 'image/jpeg',
+  }) async {
     final apiKey = dotenv.env['GEMINI_API_KEY'];
     if (apiKey == null || apiKey.isEmpty) {
       throw Exception('GEMINI_API_KEY is missing from .env');
@@ -48,8 +51,7 @@ class GeminiService {
   }
 
   Future<ReceiptData> _generateReceiptData(DataPart imagePart) async {
-    final prompt = TextPart(
-        '''
+    final prompt = TextPart('''
 Analyze this receipt image and extract the following information.
 Return the result strictly as a valid JSON object without any markdown wrapping or extra text.
 
@@ -86,6 +88,7 @@ Example JSON output:
       throw Exception('Gemini returned an empty response');
     }
 
-    return ReceiptParser.parseGeminiJson(text);
+    final data = ReceiptParser.parseGeminiJson(text);
+    return data.copyWith(rawText: text);
   }
 }

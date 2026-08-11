@@ -51,3 +51,30 @@ class Budgets extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+@DataClassName('ShoppingListEntity')
+class ShoppingLists extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  DateTimeColumn get date => dateTime()();
+  BoolColumn get completed => boolean().withDefault(const Constant(false))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ShoppingListItemEntity')
+class ShoppingListItems extends Table {
+  TextColumn get id => text()();
+  TextColumn get listId =>
+      text().references(ShoppingLists, #id, onDelete: KeyAction.cascade)();
+  TextColumn get name => text()();
+  RealColumn get quantity => real().withDefault(const Constant(1))();
+  RealColumn get unitPrice => real().nullable()();
+  RealColumn get total => real().withDefault(const Constant(0))();
+  BoolColumn get checked => boolean().withDefault(const Constant(false))();
+  IntColumn get position => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
