@@ -8,6 +8,7 @@ import 'package:uangku/core/models/transaction_type.dart';
 import 'package:uangku/data/database/database.dart';
 import 'package:uangku/data/repositories/transaction_repository.dart';
 import 'package:uangku/providers/database_provider.dart';
+import 'package:uangku/providers/transaction_provider.dart';
 import 'package:uangku/ui/analytics/analytics_screen.dart';
 
 void main() {
@@ -85,6 +86,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> pumpAnalyticsWithRange(
+    WidgetTester tester,
+    AnalyticsRangeSelection selection,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          databaseProvider.overrideWithValue(db),
+          analyticsRangeProvider.overrideWith(
+            () => _FixedRangeNotifier(selection),
+          ),
+        ],
+        child: const MaterialApp(home: AnalyticsScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
   testWidgets('shows donut chart and category breakdown', (tester) async {
     await seedCurrentMonthExpense();
 
@@ -121,6 +140,20 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   });
 
+  testWidgets('hides budget line when range is not the current lone month', (tester) async {
+    await seedCurrentMonthExpense();
+    await repo.setBudget('cat_food', 100);
+
+    await pumpAnalytics(tester);
+
+    expect(find.text('Last 30 days'), findsOneWidget);
+    expect(find.text('Expense'), findsOneWidget);
+    expect(find.text('Budget'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
   testWidgets('shows hint when no budgets are set', (tester) async {
     await seedCurrentMonthExpense();
 
@@ -139,11 +172,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   });
 
-  testWidgets('shows expense vs budget legend when budgets exist', (tester) async {
+  testWidgets('shows expense vs budget legend on a current-month range', (tester) async {
     await seedCurrentMonthExpense();
     await repo.setBudget('cat_food', 100);
+    final now = DateTime.now();
 
-    await pumpAnalytics(tester);
+    await pumpAnalyticsWithRange(
+      tester,
+      AnalyticsRangeSelection(
+        preset: AnalyticsRangePreset.custom,
+        customRange: DateTimeRange(
+          start: DateTime(now.year, now.month),
+          end: now,
+        ),
+      ),
+    );
 
     expect(find.text('Spending vs Budget'), findsOneWidget);
     expect(find.text('Expense'), findsOneWidget);
@@ -272,26 +315,35 @@ void main() {
 
     await pumpAnalytics(tester);
 
+    expect(find.text('Last 30 days'), findsOneWidget);
     expect(find.text('All time'), findsWidgets);
-    expect(find.text('30d'), findsOneWidget);
     expect(find.text('90d'), findsOneWidget);
     expect(find.text('6mo'), findsOneWidget);
     expect(find.text('This year'), findsOneWidget);
     expect(find.text('Custom'), findsOneWidget);
 
-    await tester.tap(find.text('30d'));
+    expect(find.textContaining('60'), findsWidgets);
+    expect(find.textContaining('260'), findsNothing);
+
+    await tester.tap(find.text('All time'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Last 30 days'), findsOneWidget);
+    expect(find.text('All time'), findsWidgets);
+    expect(find.textContaining('260'), findsWidgets);
     expect(find.text('No spending in this period'), findsNothing);
-    expect(find.textContaining('60'), findsWidgets);
-    expect(find.textContaining('200'), findsNothing);
+
+    await tester.tap(find.text('90d'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last 90 days'), findsOneWidget);
+    expect(find.text('No spending in this period'), findsNothing);
+    expect(find.textContaining('260'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));
   });
 
-  testWidgets('shows empty state when preset filters out all spending', (tester) async {
+  testWidgets('shows empty state for the default range when spending is older than 30 days', (tester) async {
     final now = DateTime.now();
     await repo.addTransaction(
       TransactionsCompanion.insert(
@@ -307,19 +359,26 @@ void main() {
 
     await pumpAnalytics(tester);
 
-    await tester.tap(find.text('30d'));
-    await tester.pumpAndSettle();
-
     expect(find.text('No spending in this period'), findsOneWidget);
     expect(find.text('Reset filter'), findsOneWidget);
 
-    await tester.tap(find.text('Reset filter'));
+    await tester.tap(find.text('All time'));
     await tester.pumpAndSettle();
 
     expect(find.text('No spending in this period'), findsNothing);
     expect(find.text('All time'), findsWidgets);
+    expect(find.textContaining('200'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));
   });
+}
+
+class _FixedRangeNotifier extends AnalyticsRangeNotifier {
+  _FixedRangeNotifier(this.initial);
+
+  final AnalyticsRangeSelection initial;
+
+  @override
+  AnalyticsRangeSelection build() => initial;
 }
