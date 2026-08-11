@@ -109,6 +109,9 @@ void main() {
 
     await pumpAnalytics(tester);
 
+    await tester.drag(find.byType(ListView), const Offset(0, -100));
+    await tester.pumpAndSettle();
+
     expect(find.text('Budget vs Spent'), findsOneWidget);
     expect(find.text('This month'), findsOneWidget);
     expect(find.textContaining('60'), findsWidgets);
@@ -122,6 +125,9 @@ void main() {
     await seedCurrentMonthExpense();
 
     await pumpAnalytics(tester);
+
+    await tester.drag(find.byType(ListView), const Offset(0, -100));
+    await tester.pumpAndSettle();
 
     expect(find.text('Budget vs Spent'), findsOneWidget);
     expect(
@@ -212,13 +218,19 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   });
 
-  testWidgets('shows category trend delta for selected vs previous month', (tester) async {
+  testWidgets('shows category trend delta for period vs previous period', (tester) async {
     final now = DateTime.now();
-    await seedCurrentMonthExpense();
+    await seedExpenseWithItems(
+      id: 'tr-cur',
+      date: DateTime(now.year, now.month, 3),
+      amount: 100,
+      category: 'cat_food',
+      items: [(name: 'Nasi Goreng', total: 100)],
+    );
     await repo.addTransaction(
       TransactionsCompanion.insert(
         id: 'tr-prev',
-        date: DateTime(now.year, now.month - 1, 10),
+        date: DateTime(now.year, now.month - 9, 10),
         amount: 40,
         category: 'cat_food',
         merchant: 'Prev Shop',
@@ -229,12 +241,83 @@ void main() {
 
     await pumpAnalytics(tester);
 
-    await tester.drag(find.byType(ListView), const Offset(0, -1600));
+    await tester.tap(find.text('6mo'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, -1800));
     await tester.pumpAndSettle();
 
     expect(find.text('Category Trend'), findsOneWidget);
     expect(find.textContaining(' vs '), findsOneWidget);
-    expect(find.text('↑ 50%'), findsOneWidget);
+    expect(find.text('↑ 150%'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('shows range chips and filters spending by preset', (tester) async {
+    final now = DateTime.now();
+    await seedCurrentMonthExpense();
+    await repo.addTransaction(
+      TransactionsCompanion.insert(
+        id: 'tr-old',
+        date: DateTime(now.year, now.month - 2, 10),
+        amount: 200,
+        category: 'cat_food',
+        merchant: 'Old Shop',
+        note: '',
+        type: TransactionType.expense,
+      ),
+    );
+
+    await pumpAnalytics(tester);
+
+    expect(find.text('All time'), findsWidgets);
+    expect(find.text('30d'), findsOneWidget);
+    expect(find.text('90d'), findsOneWidget);
+    expect(find.text('6mo'), findsOneWidget);
+    expect(find.text('This year'), findsOneWidget);
+    expect(find.text('Custom'), findsOneWidget);
+
+    await tester.tap(find.text('30d'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last 30 days'), findsOneWidget);
+    expect(find.text('No spending in this period'), findsNothing);
+    expect(find.textContaining('60'), findsWidgets);
+    expect(find.textContaining('200'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('shows empty state when preset filters out all spending', (tester) async {
+    final now = DateTime.now();
+    await repo.addTransaction(
+      TransactionsCompanion.insert(
+        id: 'tr-old',
+        date: DateTime(now.year, now.month - 2, 10),
+        amount: 200,
+        category: 'cat_food',
+        merchant: 'Old Shop',
+        note: '',
+        type: TransactionType.expense,
+      ),
+    );
+
+    await pumpAnalytics(tester);
+
+    await tester.tap(find.text('30d'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No spending in this period'), findsOneWidget);
+    expect(find.text('Reset filter'), findsOneWidget);
+
+    await tester.tap(find.text('Reset filter'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No spending in this period'), findsNothing);
+    expect(find.text('All time'), findsWidgets);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));

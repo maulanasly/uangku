@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'database_provider.dart';
 import '../data/database/database.dart';
 import '../core/models/transaction_query.dart';
@@ -50,6 +51,99 @@ class SelectedMonthNotifier extends Notifier<DateTime> {
   }
 
   void select(DateTime month) => state = DateTime(month.year, month.month);
+}
+
+/// Presets for the analytics date filter. `custom` holds a user-picked range.
+enum AnalyticsRangePreset {
+  allTime,
+  last30Days,
+  last90Days,
+  last6Months,
+  thisYear,
+  custom,
+}
+
+class AnalyticsRangeSelection {
+  final AnalyticsRangePreset preset;
+  final DateTimeRange? customRange;
+
+  const AnalyticsRangeSelection({
+    required this.preset,
+    this.customRange,
+  });
+
+  DateTimeRange? effectiveRange(DateTime now) {
+    switch (preset) {
+      case AnalyticsRangePreset.allTime:
+        return null;
+      case AnalyticsRangePreset.last30Days:
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 30)),
+          end: now,
+        );
+      case AnalyticsRangePreset.last90Days:
+        return DateTimeRange(
+          start: now.subtract(const Duration(days: 90)),
+          end: now,
+        );
+      case AnalyticsRangePreset.last6Months:
+        return DateTimeRange(
+          start: DateTime(now.year, now.month - 6),
+          end: now,
+        );
+      case AnalyticsRangePreset.thisYear:
+        return DateTimeRange(start: DateTime(now.year), end: now);
+      case AnalyticsRangePreset.custom:
+        return customRange;
+    }
+  }
+
+  String label(DateTime now) {
+    if (preset == AnalyticsRangePreset.custom) {
+      final range = customRange;
+      if (range == null) return 'Custom';
+      final fmt = DateFormat.yMMMd();
+      return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
+    }
+    switch (preset) {
+      case AnalyticsRangePreset.allTime:
+        return 'All time';
+      case AnalyticsRangePreset.last30Days:
+        return 'Last 30 days';
+      case AnalyticsRangePreset.last90Days:
+        return 'Last 90 days';
+      case AnalyticsRangePreset.last6Months:
+        return 'Last 6 months';
+      case AnalyticsRangePreset.thisYear:
+        return 'This year';
+      case AnalyticsRangePreset.custom:
+        return 'Custom';
+    }
+  }
+}
+
+final analyticsRangeProvider =
+    NotifierProvider<AnalyticsRangeNotifier, AnalyticsRangeSelection>(
+  AnalyticsRangeNotifier.new,
+);
+
+class AnalyticsRangeNotifier extends Notifier<AnalyticsRangeSelection> {
+  @override
+  AnalyticsRangeSelection build() =>
+      const AnalyticsRangeSelection(preset: AnalyticsRangePreset.allTime);
+
+  void selectPreset(AnalyticsRangePreset preset) {
+    state = AnalyticsRangeSelection(preset: preset);
+  }
+
+  void selectCustom(DateTimeRange range) {
+    state = AnalyticsRangeSelection(
+      preset: AnalyticsRangePreset.custom,
+      customRange: range,
+    );
+  }
+
+  void reset() => state = build();
 }
 
 final transactionQueryProvider =

@@ -104,6 +104,12 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const _SectionHeader(title: 'DATA'),
           ListTile(
+            title: const Text('Item Price History'),
+            subtitle: const Text('Search item prices over time'),
+            leading: const Icon(Icons.history),
+            onTap: () => context.push('/item_prices'),
+          ),
+          ListTile(
             title: const Text('Export Data'),
             leading: const Icon(Icons.file_download),
             onTap: () async {

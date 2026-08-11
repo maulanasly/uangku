@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../data/database/database.dart';
 import 'summary_calculator.dart';
 
@@ -92,6 +94,42 @@ class ItemAnalyticsCalculator {
           categoryId: key,
           previous: previous.categoryBreakdown[key] ?? 0,
           current: current.categoryBreakdown[key] ?? 0,
+        ),
+    ]..sort((a, b) => b.current.compareTo(a.current));
+
+    return trends;
+  }
+
+  /// Compares spending per category between [range] and the immediately
+  /// preceding period of equal length.
+  static List<CategoryTrend> categoryTrendForRange(
+    List<TransactionEntity> transactions,
+    DateTimeRange range,
+  ) {
+    final length = range.end.difference(range.start);
+    final previousStart = range.start.subtract(length);
+
+    double spendIn(DateTime from, DateTime to, String category) {
+      var sum = 0.0;
+      for (final t in transactions) {
+        final before = t.date.isBefore(from);
+        final after = t.date.isAfter(to);
+        if (!before && !after && t.category == category) {
+          sum += t.amount;
+        }
+      }
+      return sum;
+    }
+
+    final categories = <String>{
+      for (final t in transactions) t.category,
+    };
+    final trends = [
+      for (final category in categories)
+        CategoryTrend(
+          categoryId: category,
+          previous: spendIn(previousStart, range.start, category),
+          current: spendIn(range.start, range.end, category),
         ),
     ]..sort((a, b) => b.current.compareTo(a.current));
 
