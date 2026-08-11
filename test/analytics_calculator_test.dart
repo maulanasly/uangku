@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:uangku/core/models/transaction_type.dart';
@@ -35,9 +36,12 @@ void main() {
         _tx(id: '4', date: DateTime(now.year - 1, now.month), amount: 500, category: 'cat_food'),
       ];
 
-      final data = AnalyticsCalculator.compute(transactions, months: 6);
+      final data = AnalyticsCalculator.compute(
+        transactions,
+        range: DateTimeRange(start: lastMonth, end: thisMonth),
+      );
 
-      expect(data.trends.length, 6);
+      expect(data.trends.length, 2);
       final currentTrend = data.trends.last;
       expect(currentTrend.expense, 100);
       expect(data.totalExpense, 150);
@@ -53,7 +57,10 @@ void main() {
         ),
       ];
 
-      final data = AnalyticsCalculator.compute(transactions, months: 6);
+      final data = AnalyticsCalculator.compute(
+        transactions,
+        range: DateTimeRange(start: lastMonth, end: thisMonth),
+      );
 
       expect(data.totalExpense, 0);
       expect(data.categorySpending, isEmpty);
@@ -66,10 +73,26 @@ void main() {
         _tx(id: '3', date: lastMonth, amount: 30, category: 'cat_transport'),
       ];
 
-      final data = AnalyticsCalculator.compute(transactions, months: 6);
+      final data = AnalyticsCalculator.compute(
+        transactions,
+        range: DateTimeRange(start: lastMonth, end: thisMonth),
+      );
 
       expect(data.categorySpending['cat_food'], 100);
       expect(data.categorySpending['cat_transport'], 30);
+    });
+
+    test('includes all transactions when range is null', () {
+      final transactions = [
+        _tx(id: '1', date: thisMonth, amount: 100, category: 'cat_food'),
+        _tx(id: '2', date: DateTime(now.year - 2, now.month), amount: 250, category: 'cat_transport'),
+      ];
+
+      final data = AnalyticsCalculator.compute(transactions);
+
+      expect(data.totalExpense, 350);
+      expect(data.categorySpending['cat_transport'], 250);
+      expect(data.trends.length, 25);
     });
   });
 }

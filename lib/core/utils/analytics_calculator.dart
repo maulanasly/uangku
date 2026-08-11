@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../../data/database/database.dart';
 
 class MonthlyTrend {
@@ -23,14 +25,46 @@ class AnalyticsData {
 }
 
 class AnalyticsCalculator {
-  static AnalyticsData compute(List<TransactionEntity> transactions, {int months = 6}) {
-    final now = DateTime.now();
-    final current = DateTime(now.year, now.month);
+  /// Computes monthly expense trends and category spending for the given
+  /// transactions. When [range] is null, all transactions are bucketed by
+  /// month from the earliest to the latest transaction. When a range is
+  /// provided, only transactions within it count.
+  static AnalyticsData compute(
+    List<TransactionEntity> transactions, {
+    DateTimeRange? range,
+  }) {
+    final start = range?.start;
+    final end = range?.end;
+
+    DateTime first;
+    DateTime last;
+    if (range != null) {
+      first = DateTime(range.start.year, range.start.month);
+      last = DateTime(range.end.year, range.end.month);
+    } else if (transactions.isEmpty) {
+      final now = DateTime.now();
+      first = DateTime(now.year, now.month);
+      last = first;
+    } else {
+      var minDate = transactions.first.date;
+      var maxDate = transactions.first.date;
+      for (final t in transactions) {
+        if (t.date.isBefore(minDate)) {
+          minDate = t.date;
+        }
+        if (t.date.isAfter(maxDate)) {
+          maxDate = t.date;
+        }
+      }
+      first = DateTime(minDate.year, minDate.month);
+      last = DateTime(maxDate.year, maxDate.month);
+    }
 
     final trends = <MonthlyTrend>[];
-    for (var i = months - 1; i >= 0; i--) {
-      final month = DateTime(current.year, current.month - i);
+    var month = first;
+    while (!month.isAfter(last)) {
       trends.add(MonthlyTrend(month: month, expense: 0));
+      month = DateTime(month.year, month.month + 1);
     }
 
     final Map<String, double> categorySpending = {};
@@ -40,6 +74,12 @@ class AnalyticsCalculator {
     };
 
     for (final t in transactions) {
+      if (start != null && t.date.isBefore(start)) {
+        continue;
+      }
+      if (end != null && t.date.isAfter(end)) {
+        continue;
+      }
       final key = t.date.year * 100 + t.date.month;
       final idx = trendIndex[key];
       if (idx == null) {

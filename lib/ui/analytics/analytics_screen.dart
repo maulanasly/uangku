@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/ui/add_expense_sheet.dart';
@@ -21,7 +22,6 @@ class AnalyticsScreen extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     final budgetsAsync = ref.watch(budgetsProvider);
     final itemsAsync = ref.watch(allTransactionItemsProvider);
-    final selectedMonth = ref.watch(selectedMonthProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Analytics')),
@@ -49,10 +49,47 @@ class AnalyticsScreen extends ConsumerWidget {
             );
           }
 
-          final data = AnalyticsCalculator.compute(transactions);
+          final rangeSelection = ref.watch(analyticsRangeProvider);
+          final now = DateTime.now();
+          final range = rangeSelection.effectiveRange(now);
+          final scoped = range == null
+              ? transactions
+              : transactions
+                  .where(
+                    (t) =>
+                        !t.date.isBefore(range.start) &&
+                        !t.date.isAfter(range.end),
+                  )
+                  .toList();
+
+          if (scoped.isEmpty) {
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(transactionsProvider);
+                ref.invalidate(categoriesProvider);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: [
+                  const SizedBox(height: 16),
+                  const _AnalyticsRangeChips(),
+                  const SizedBox(height: 120),
+                  EmptyState(
+                    icon: Icons.event_busy,
+                    title: 'No spending in this period',
+                    subtitle: 'Try a wider date range or reset the filter.',
+                    actionLabel: 'Reset filter',
+                    onAction: () =>
+                        ref.read(analyticsRangeProvider.notifier).reset(),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final data = AnalyticsCalculator.compute(scoped, range: range);
           final categories = categoriesAsync.value ?? [];
           final budgets = budgetsAsync.value ?? [];
-          final now = DateTime.now();
           final budgetSummary = SummaryCalculator.budgetForMonth(
             transactions,
             budgets,
@@ -74,8 +111,10 @@ class AnalyticsScreen extends ConsumerWidget {
           final hasBudget = totalBudget > 0;
 
           final items = itemsAsync.value ?? const <TransactionItemEntity>[];
-          final topItems = ItemAnalyticsCalculator.topItemsByCategory(transactions, items);
-          final categoryTrends = ItemAnalyticsCalculator.categoryTrend(transactions, selectedMonth);
+          final topItems = ItemAnalyticsCalculator.topItemsByCategory(scoped, items);
+          final categoryTrends = range == null
+              ? const <CategoryTrend>[]
+              : ItemAnalyticsCalculator.categoryTrendForRange(transactions, range);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -85,12 +124,19 @@ class AnalyticsScreen extends ConsumerWidget {
             child: ListView(
             padding: const EdgeInsets.all(16.0),
             children: [
+              const _AnalyticsRangeChips(),
+              const SizedBox(height: 16),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     children: [
                       const Text('Spending vs Budget', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        _rangeLabel(range),
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
                       const SizedBox(height: 16),
                       SizedBox(
                         height: 220,
@@ -275,12 +321,13 @@ class AnalyticsScreen extends ConsumerWidget {
                 currencyFormat: currencyFormat,
               ),
               const SizedBox(height: 16),
-              _CategoryTrendCard(
-                trends: categoryTrends,
-                categoryName: categoryName,
-                currencyFormat: currencyFormat,
-                selectedMonth: selectedMonth,
-              ),
+              if (range != null)
+                _CategoryTrendCard(
+                  trends: categoryTrends,
+                  categoryName: categoryName,
+                  currencyFormat: currencyFormat,
+                  range: range,
+                ),
             ],
           ),
           );
@@ -290,6 +337,99 @@ class AnalyticsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+class _AnalyticsRangeChips extends ConsumerWidget {
+  const _AnalyticsRangeChips();
+
+  static const _presets = [
+    AnalyticsRangePreset.allTime,
+    AnalyticsRangePreset.last30Days,
+    AnalyticsRangePreset.last90Days,
+    AnalyticsRangePreset.last6Months,
+    AnalyticsRangePreset.thisYear,
+  ];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selection = ref.watch(analyticsRangeProvider);
+    final now = DateTime.now();
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final preset in _presets)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text(
+                  selection.preset == preset
+                      ? selection.label(now)
+                      : _shortLabel(preset),
+                ),
+                selected: selection.preset == preset,
+                onSelected: (_) =>
+                    ref.read(analyticsRangeProvider.notifier).selectPreset(preset),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(
+                selection.preset == AnalyticsRangePreset.custom
+                    ? selection.label(now)
+                    : 'Custom',
+              ),
+              selected: selection.preset == AnalyticsRangePreset.custom,
+              onSelected: (_) => _pickCustomRange(context, ref),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _shortLabel(AnalyticsRangePreset preset) {
+    switch (preset) {
+      case AnalyticsRangePreset.allTime:
+        return 'All time';
+      case AnalyticsRangePreset.last30Days:
+        return '30d';
+      case AnalyticsRangePreset.last90Days:
+        return '90d';
+      case AnalyticsRangePreset.last6Months:
+        return '6mo';
+      case AnalyticsRangePreset.thisYear:
+        return 'This year';
+      case AnalyticsRangePreset.custom:
+        return 'Custom';
+    }
+  }
+
+  Future<void> _pickCustomRange(BuildContext context, WidgetRef ref) async {
+    final now = DateTime.now();
+    final current = ref.read(analyticsRangeProvider);
+    final initial = current.customRange ??
+        DateTimeRange(start: DateTime(now.year, now.month - 1), end: now);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 1, 12, 31),
+      initialDateRange: initial,
+    );
+    if (picked != null) {
+      ref.read(analyticsRangeProvider.notifier).selectCustom(picked);
+    }
+  }
+}
+
+String _rangeLabel(DateTimeRange? range) {
+  if (range == null) {
+    return 'All time';
+  }
+  final fmt = DateFormat.yMMMd();
+  return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
 }
 
 class _TopItemsCard extends StatelessWidget {
@@ -356,6 +496,18 @@ class _TopItemsCard extends StatelessWidget {
                   ],
                 ),
               ],
+            if (sorted.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => context.push('/item_prices'),
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('View price history'),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -426,19 +578,17 @@ class _CategoryTrendCard extends StatelessWidget {
   final List<CategoryTrend> trends;
   final String Function(String) categoryName;
   final NumberFormat currencyFormat;
-  final DateTime selectedMonth;
+  final DateTimeRange range;
 
   const _CategoryTrendCard({
     required this.trends,
     required this.categoryName,
     required this.currencyFormat,
-    required this.selectedMonth,
+    required this.range,
   });
 
   @override
   Widget build(BuildContext context) {
-    final previousMonth = SummaryCalculator.shiftMonth(selectedMonth, -1);
-
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -451,7 +601,7 @@ class _CategoryTrendCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '${DateFormat.yMMM().format(previousMonth)} vs ${DateFormat.yMMM().format(selectedMonth)}',
+              '${DateFormat.yMMM().format(range.start)} vs ${DateFormat.yMMM().format(range.end)}',
               style: const TextStyle(fontSize: 12, color: Colors.grey),
             ),
             const SizedBox(height: 12),
@@ -460,7 +610,7 @@ class _CategoryTrendCard extends StatelessWidget {
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(
                   child: Text(
-                    'No spending in the selected months',
+                    'No spending in the selected period',
                     style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ),
