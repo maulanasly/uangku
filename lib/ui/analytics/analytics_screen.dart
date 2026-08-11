@@ -182,7 +182,28 @@ class AnalyticsScreen extends ConsumerWidget {
                             minY: 0,
                             gridData: const FlGridData(show: true, drawVerticalLine: false),
                             titlesData: FlTitlesData(
-                              leftTitles: const AxisTitles(),
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 44,
+                                  getTitlesWidget: (value, meta) {
+                                    if (value <= 0) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 4),
+                                      child: Text(
+                                        currencyFormat.format(value),
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
                               topTitles: const AxisTitles(),
                               rightTitles: const AxisTitles(),
                               bottomTitles: AxisTitles(
@@ -332,12 +353,14 @@ class AnalyticsScreen extends ConsumerWidget {
                           child: Center(child: Text('No spending in this range')),
                         )
                       else ...[
-                        _CategoryDonutChart(
-                          spending: data.categorySpending,
-                          categoryName: categoryName,
-                          currencyFormat: currencyFormat,
-                        ),
-                        const SizedBox(height: 16),
+                        if (data.categorySpending.length <= 6) ...[
+                          _CategoryDonutChart(
+                            spending: data.categorySpending,
+                            categoryName: categoryName,
+                            currencyFormat: currencyFormat,
+                          ),
+                          const SizedBox(height: 16),
+                        ],
                         _AnalyticsCategoryBars(
                           spending: data.categorySpending,
                           categoryName: categoryName,
@@ -389,39 +412,46 @@ class _AnalyticsRangeChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(analyticsRangeProvider);
     final now = DateTime.now();
+    final colorScheme = Theme.of(context).colorScheme;
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final preset in _presets)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(
-                  selection.preset == preset
-                      ? selection.label(now)
-                      : _shortLabel(preset),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final preset in _presets)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(_shortLabel(preset)),
+                    selected: selection.preset == preset,
+                    onSelected: (_) => ref
+                        .read(analyticsRangeProvider.notifier)
+                        .selectPreset(preset),
+                  ),
                 ),
-                selected: selection.preset == preset,
-                onSelected: (_) =>
-                    ref.read(analyticsRangeProvider.notifier).selectPreset(preset),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  label: const Text('Custom'),
+                  selected: selection.preset == AnalyticsRangePreset.custom,
+                  onSelected: (_) => _pickCustomRange(context, ref),
+                ),
               ),
-            ),
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: ChoiceChip(
-              label: Text(
-                selection.preset == AnalyticsRangePreset.custom
-                    ? selection.label(now)
-                    : 'Custom',
-              ),
-              selected: selection.preset == AnalyticsRangePreset.custom,
-              onSelected: (_) => _pickCustomRange(context, ref),
-            ),
+            ],
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          selection.label(now),
+          style: TextStyle(
+            fontSize: 12,
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ],
     );
   }
 
@@ -465,6 +495,19 @@ String _rangeLabel(DateTimeRange? range) {
   }
   final fmt = DateFormat.yMMMd();
   return '${fmt.format(range.start)} – ${fmt.format(range.end)}';
+}
+
+/// Short human description of a range's duration, e.g. "30 days" or "6 months".
+String _periodLabel(DateTimeRange range) {
+  final days = range.end.difference(range.start).inDays;
+  if (days < 28) {
+    return '$days days';
+  }
+  final months = (days / 30.44).round();
+  if (months == 1) {
+    return '1 month';
+  }
+  return '$months months';
 }
 
 /// Sums expense amounts in [transactions] that fall on or after [from] and
@@ -781,7 +824,7 @@ class _CategoryTrendCard extends StatelessWidget {
             ),
             const SizedBox(height: 2),
             Text(
-              '${DateFormat.yMMM().format(range.start)} vs ${DateFormat.yMMM().format(range.end)}',
+              'Selected range vs previous ${_periodLabel(range)}',
               style: TextStyle(
                 fontSize: 12,
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1161,9 +1204,13 @@ class _CategoryDonutChartState extends State<_CategoryDonutChart> {
                 ),
               ),
               const SizedBox(height: 2),
-              Text(
-                centerValue,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  centerValue,
+                  maxLines: 1,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
