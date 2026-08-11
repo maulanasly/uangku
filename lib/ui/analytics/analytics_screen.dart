@@ -692,6 +692,7 @@ class _TopItemsCard extends StatelessWidget {
                 ExpansionTile(
                   tilePadding: EdgeInsets.zero,
                   childrenPadding: const EdgeInsets.only(bottom: 8),
+                  initiallyExpanded: i == 0,
                   title: Text(
                     categoryName(sorted[i].key),
                     style: const TextStyle(
