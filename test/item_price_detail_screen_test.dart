@@ -84,7 +84,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('shows price chart and purchase rows', (tester) async {
+  testWidgets('shows price chart, legend, stats and purchase rows', (tester) async {
     await seedHistory();
 
     await pumpDetail(tester);
@@ -92,7 +92,13 @@ void main() {
     expect(find.text('Milo'), findsOneWidget);
     expect(find.text('Price over time'), findsOneWidget);
     expect(find.byType(LineChart), findsOneWidget);
+    expect(find.text('Price'), findsOneWidget);
+    expect(find.text('Average'), findsOneWidget);
+    expect(find.text('Latest'), findsOneWidget);
     expect(find.text('2 purchases'), findsOneWidget);
+    expect(find.textContaining('Avg '), findsOneWidget);
+    expect(find.textContaining('Min '), findsOneWidget);
+    expect(find.textContaining('Max '), findsOneWidget);
     expect(find.text('Alfamart'), findsOneWidget);
     expect(find.text('Indomaret'), findsOneWidget);
     expect(find.text('total 30'), findsNothing);
@@ -101,7 +107,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 10));
   });
 
-  testWidgets('single purchase hides the chart', (tester) async {
+  testWidgets('single purchase still shows the chart', (tester) async {
     await repo.addTransactionWithItems(
       TransactionsCompanion.insert(
         id: 'd-3',
@@ -125,8 +131,66 @@ void main() {
 
     await pumpDetail(tester, itemName: 'Roti');
 
-    expect(find.byType(LineChart), findsNothing);
+    expect(find.byType(LineChart), findsOneWidget);
+    expect(find.text('Price'), findsOneWidget);
+    expect(find.text('Average'), findsOneWidget);
+    expect(find.text('Latest'), findsOneWidget);
     expect(find.text('1 purchase'), findsOneWidget);
+    expect(find.textContaining('Avg '), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 10));
+  });
+
+  testWidgets('same-day purchases both appear in the chart', (tester) async {
+    await repo.addTransactionWithItems(
+      TransactionsCompanion.insert(
+        id: 'd-4',
+        date: DateTime(2026, 3, 1),
+        amount: 12,
+        category: 'cat_food',
+        merchant: 'Alfamart',
+        note: '',
+        type: TransactionType.expense,
+      ),
+      [
+        TransactionItemsCompanion.insert(
+          id: 'd-4-i0',
+          transactionId: 'd-4',
+          name: 'Teh Botol',
+          quantity: const Value<double>(1),
+          total: 12.0,
+        ),
+      ],
+    );
+    await repo.addTransactionWithItems(
+      TransactionsCompanion.insert(
+        id: 'd-5',
+        date: DateTime(2026, 3, 1),
+        amount: 9,
+        category: 'cat_food',
+        merchant: 'Indomaret',
+        note: '',
+        type: TransactionType.expense,
+      ),
+      [
+        TransactionItemsCompanion.insert(
+          id: 'd-5-i0',
+          transactionId: 'd-5',
+          name: 'Teh Botol',
+          quantity: const Value<double>(1),
+          total: 9.0,
+        ),
+      ],
+    );
+
+    await pumpDetail(tester, itemName: 'Teh Botol');
+
+    expect(find.byType(LineChart), findsOneWidget);
+    expect(find.text('2 purchases'), findsOneWidget);
+    expect(find.text('Alfamart'), findsOneWidget);
+    expect(find.text('Indomaret'), findsOneWidget);
+    expect(find.textContaining('Min '), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 10));
