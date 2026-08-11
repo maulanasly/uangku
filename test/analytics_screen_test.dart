@@ -290,9 +290,6 @@ void main() {
     expect(find.text('Top Items by Category'), findsOneWidget);
     expect(find.text('No item data yet'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ExpansionTile, 'Food & Dining'));
-    await tester.pumpAndSettle();
-
     expect(find.text('Nasi Goreng'), findsOneWidget);
     expect(find.text('Ayam Bakar'), findsOneWidget);
     expect(find.text('Es Teh'), findsOneWidget);
